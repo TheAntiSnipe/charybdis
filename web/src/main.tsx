@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@fontsource/modak';
+import '@fontsource/permanent-marker';
 import App from './App';
 import './styles.css';
 

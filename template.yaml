@@ -221,7 +221,7 @@ Resources:
             ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03
 
   # -------------------------------------------------------------------- data
-  # Single-table design. pk is the entity type (TRACK | ALBUM | PLAYLIST), sk is the entity id.
+  # Single-table design. pk is the entity type (TRACK | ALBUM | PLAYLIST | CASSETTE | ENTRY), sk is the entity id.
   LibraryTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -300,6 +300,63 @@ Resources:
             ApiId: !Ref HttpApi
             Method: GET
             Path: /api/library
+
+  # Tape deck: cassettes and journal entries. Separate function so ApiFunction stays read-only.
+  CassetteLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-cassettes
+      RetentionInDays: 30
+
+  CassetteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-cassettes
+      CodeUri: api/
+      Handler: cassettes.handler
+      Runtime: python3.14
+      Architectures: [x86_64]
+      MemorySize: 256
+      Timeout: 10
+      LoggingConfig:
+        LogGroup: !Ref CassetteLogGroup
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref LibraryTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LibraryTable
+      Events:
+        ListCassettes:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /api/cassettes
+        CreateCassette:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: POST
+            Path: /api/cassettes
+        SaveProgress:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: PUT
+            Path: /api/cassettes/{id}/progress
+        SaveSettings:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: PUT
+            Path: /api/cassettes/{id}/settings
+        SaveEntry:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: PUT
+            Path: /api/cassettes/{id}/entries/{slot}
 
   # ------------------------------------------------------------------- auth
   UserPool:

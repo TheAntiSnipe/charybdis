@@ -38,3 +38,27 @@ export interface Library {
   albums: Album[];
   playlists: Playlist[];
 }
+
+export type CassetteStyle = 'generated' | 'cover' | 'executive' | 'clear';
+
+export interface Cassette {
+  id: string;
+  kind: 'album' | 'artist';
+  sourceId: string;
+  label: string;
+  title?: string; // the user's own name for the tape; falls back to label
+  style?: CassetteStyle; // how the cassette looks in the deck; defaults to 'generated'
+  trackIds: string[];
+  pages: { albumId: string; count: number }[];
+  progress: { index: number; positionSec: number };
+  status: 'shelf' | 'finished';
+  createdAt: number;
+  finishedAt?: number;
+}
+
+export interface JournalEntry {
+  cassetteId: string;
+  slot: number;
+  text: string;
+  updatedAt: number;
+}

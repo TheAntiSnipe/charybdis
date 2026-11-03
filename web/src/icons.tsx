@@ -13,6 +13,19 @@ export const PlayIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base} {...p}><path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11.1-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z" /></svg>
 );
 
+export const EjectIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} {...p}>
+    <path d="M11.1 5.3 4.4 14.6a1 1 0 0 0 .8 1.6h13.6a1 1 0 0 0 .8-1.6L12.9 5.3a1 1 0 0 0-1.8 0Z" />
+    <rect x="4.5" y="18" width="15" height="2.6" rx="1.1" />
+  </svg>
+);
+
+export const CassetteIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base} {...p}>
+    <path fillRule="evenodd" d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm2.6 4.2a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6Zm10.8 0a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6ZM8 16.2h8v1.3H8v-1.3Z" />
+  </svg>
+);
+
 export const PauseIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base} {...p}>
     <rect x="6" y="4.5" width="4.5" height="15" rx="1.2" />

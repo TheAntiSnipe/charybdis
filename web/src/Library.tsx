@@ -1,7 +1,9 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { CloseIcon, EqualizerIcon, PlayIcon, SearchIcon, ShuffleIcon } from './icons';
+import { CassetteIcon, CloseIcon, EqualizerIcon, PlayIcon, SearchIcon, ShuffleIcon } from './icons';
 import { usePlayer } from './player';
 import { buildIndex, search, type SearchResults } from './search';
+import TapeDeck from './TapeDeck';
+import { findTape, type TapeStore } from './tapes';
 import type { Album, Library, Playlist, Track } from './types';
 
 export function formatTime(seconds: number): string {
@@ -79,10 +81,43 @@ function TrackList({ tracks, showArtist, columns = false }: { tracks: Track[]; s
   );
 }
 
+type Tab = 'albums' | 'tracks' | 'playlists' | 'tapedeck';
+const TAB_LABELS: Record<Tab, string> = { albums: 'Albums', tracks: 'Tracks', playlists: 'Playlists', tapedeck: 'Tape deck' };
+
 type View =
-  | { kind: 'tab'; tab: 'albums' | 'tracks' | 'playlists' }
+  | { kind: 'tab'; tab: Tab }
   | { kind: 'album'; id: string }
   | { kind: 'playlist'; id: string };
+
+function MakeCassetteButton({ album, tapes, onOpenDeck }: { album: Album; tapes: TapeStore; onOpenDeck: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const exists = !!findTape(tapes.cassettes, 'album', album.id);
+
+  async function make() {
+    setBusy(true);
+    setError('');
+    try {
+      await tapes.create('album', album.id);
+      onOpenDeck();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="play-actions">
+        <button className="action alt" onClick={exists ? onOpenDeck : make} disabled={busy || tapes.status === 'loading'}>
+          <CassetteIcon /> {exists ? 'On the shelf' : busy ? 'Making…' : 'Make cassette'}
+        </button>
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
+    </>
+  );
+}
 
 function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
@@ -173,7 +208,12 @@ function SearchResultsView({
   );
 }
 
-export default function LibraryView({ library, artFor }: { library: Library; artFor: (t: Track) => string | null }) {
+export default function LibraryView({ library, artFor, tapes, onDeckVisible }: {
+  library: Library;
+  artFor: (t: Track) => string | null;
+  tapes: TapeStore;
+  onDeckVisible?: (visible: boolean) => void;
+}) {
   const [view, setView] = useState<View>({ kind: 'tab', tab: 'albums' });
   const trackById = useMemo(() => new Map(library.tracks.map((t) => [t.id, t])), [library]);
   const resolve = (ids: string[]) => ids.map((id) => trackById.get(id)).filter((t): t is Track => !!t);
@@ -206,6 +246,7 @@ export default function LibraryView({ library, artFor }: { library: Library; art
             <h2>{album.title}</h2>
             <p className="muted">{album.artist}{album.year ? ` · ${album.year}` : ''}</p>
             <PlayActions tracks={tracks} />
+            <MakeCassetteButton album={album} tapes={tapes} onOpenDeck={() => setView({ kind: 'tab', tab: 'tapedeck' })} />
           </div>
         </header>
         <TrackList tracks={tracks} showArtist={false} />
@@ -240,7 +281,7 @@ export default function LibraryView({ library, artFor }: { library: Library; art
   return (
     <section>
       <nav className="tabs">
-        {(['albums', 'tracks', 'playlists'] as const).map((t) => (
+        {(['albums', 'tracks', 'playlists', 'tapedeck'] as const).map((t) => (
           <button
             key={t}
             className={tab === t && !searching ? 'on' : ''}
@@ -249,7 +290,7 @@ export default function LibraryView({ library, artFor }: { library: Library; art
               setView({ kind: 'tab', tab: t });
             }}
           >
-            {t[0].toUpperCase() + t.slice(1)}
+            {TAB_LABELS[t]}
           </button>
         ))}
       </nav>
@@ -292,6 +333,7 @@ export default function LibraryView({ library, artFor }: { library: Library; art
           ))}
         </div>
       )}
+      {!searching && tab === 'tapedeck' && <TapeDeck library={library} tapes={tapes} resolve={resolve} onVisible={onDeckVisible} />}
     </section>
   );
 }

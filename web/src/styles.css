@@ -375,3 +375,217 @@ h1, .tabs button, .detail-head h2, .np-heading, .section-title {
   .np-controls .primary svg { width: 26px; height: 26px; }
 }
 @media (prefers-reduced-motion: reduce) { .np { animation: none; } }
+
+/* ---- tape deck: shelf, spines, picker ---- */
+.deck-head { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 6px; }
+.deck-note { text-align: left; max-width: 520px; font-size: 15px; }
+.notice-line { margin: 12px 0 0; color: var(--text); font-size: 15px; }
+.tapedeck .error { max-width: none; text-align: left; }
+
+.shelf { list-style: none; margin: 0 0 6px; padding: 0 4px; display: flex; flex-wrap: wrap; align-items: flex-end; }
+/* each row of spines gets its own plank: adjacent <li> bottoms touch and read as one board */
+.shelf > li { padding: 0 3px; border-bottom: 14px solid #6b4020; box-shadow: 0 5px 0 #2e1a0c; }
+
+.spine {
+  --paper: #fff7df;
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: var(--w); height: var(--h); padding: 0;
+  background: var(--shell); color: #1d1d2b;
+  border: 3px solid var(--outline); border-bottom: 0; border-radius: 7px 7px 0 0;
+  box-shadow: 3px 0 0 var(--ink);
+  transform: rotate(var(--tilt)); transform-origin: bottom center;
+  transition: transform 0.15s, opacity 0.15s;
+}
+.spine::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 13px; background: rgba(0, 0, 0, 0.28); border-radius: 4px 4px 0 0; }
+.spine-paper { width: 88%; height: 80%; margin-top: 14px; background: var(--paper); border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+/* the "sharpie": vertical marker lettering; long names wrap onto two lines (three at the smallest sizes), centred along the spine */
+.spine-title {
+  writing-mode: vertical-rl; font-family: 'Permanent Marker', 'Segoe Print', cursive; font-size: var(--fs, 17px); line-height: 1.05;
+  inline-size: calc(var(--h) * 0.66); max-block-size: calc(var(--lines, 2) * 1.05em); text-align: center;
+  white-space: normal; overflow-wrap: anywhere; overflow: hidden;
+}.spine:active { transform: translateY(-4px) rotate(var(--tilt)); }
+@media (hover: hover) { .spine:hover { transform: translateY(-8px) rotate(0deg); } }
+/* a tape in the deck leaves a gap in the row */
+.spine.loaded { transform: translateY(-18px) rotate(var(--tilt)); opacity: 0.5; }
+.spine.finished::after { content: '\2605'; position: absolute; top: 15px; right: -2px; width: 22px; height: 22px; display: grid; place-items: center; font-size: 14px; color: #5a3a00; background: #ffd34d; border: 2px solid var(--outline); border-radius: 50%; }
+
+.picker { background: var(--panel); border: 2px solid var(--line); border-radius: 18px; padding: 14px; margin: 12px 0 8px; display: flex; flex-direction: column; gap: 12px; }
+.seg { display: flex; gap: 8px; }
+.seg button { flex: 1; padding: 9px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); color: var(--muted); font-size: 15px; }
+.seg button.on { background: var(--accent); color: #fff; }
+.picker input { padding: 12px 14px; border-radius: 12px; border: 2px solid #5b2cb5; font-size: 16px; }
+.pick-list { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.pick-row { width: 100%; display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 12px; background: none; color: inherit; text-align: left; font-weight: 400; }
+.pick-row:disabled { opacity: 0.55; }
+.pick-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pick-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-state { flex: none; color: var(--accent); font-weight: 700; font-size: 14px; }
+.pick-icon { flex: none; width: 46px; height: 46px; display: grid; place-items: center; border-radius: 9px; background: #3a1782; color: var(--muted); }
+.pick-icon svg { width: 26px; height: 26px; }
+@media (hover: hover) { .pick-row:not(:disabled):hover { background: rgba(255, 255, 255, 0.06); } }
+@media (prefers-reduced-motion: reduce) { .spine { transition: none; } }
+
+/* ---- the deck ---- */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.deck {
+  max-width: 560px; margin: 14px auto 22px; padding: 14px 14px 12px;
+  background: linear-gradient(180deg, #4a4466, #2a2540 55%, #221d37);
+  border: 3px solid var(--outline); border-radius: 22px; box-shadow: 4px 6px 0 var(--ink), inset 0 2px 0 rgba(255, 255, 255, 0.14);
+}
+.deck-bay {
+  position: relative; display: grid; place-items: center; height: clamp(150px, 44vw, 214px); overflow: hidden;
+  background: radial-gradient(ellipse at 50% 20%, #1d1236, #0a0518 75%); border: 3px solid #120a2a; border-radius: 14px;
+  box-shadow: inset 0 8px 18px rgba(0, 0, 0, 0.85);
+}
+.deck-empty { margin: 0; color: #6a5a98; font-family: 'Permanent Marker', cursive; font-size: 18px; }
+.cassette-wrap { width: min(80%, 320px); }
+.cassette { position: relative; width: 100%; aspect-ratio: 200 / 126; container-type: inline-size; filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.55)); }
+.cassette > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* the printed label area: 182.8x82.7 of the 200x126 shell, measured from a real cassette */
+.cassette-face {
+  position: absolute; left: 4.3%; top: 7.4%; width: 91.4%; height: 65.6%; overflow: hidden; border-radius: 1.8cqw;
+  background: #1b1030; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+.cassette-genart { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cassette-covers { position: absolute; inset: 0; display: flex; }
+.cassette-covers img { flex: 1 1 0; min-width: 0; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; user-select: none; }
+/* a dark wash across the top keeps the title readable on any cover */
+.cassette-face::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0) 48%, rgba(0, 0, 0, 0.18)); pointer-events: none; }
+.cassette-label {
+  position: absolute; z-index: 1; left: 4%; right: 4%; top: 3%; height: 34%; display: flex; align-items: center; justify-content: center;
+  text-align: center; overflow: hidden; overflow-wrap: anywhere; line-height: 1.05;
+  font-family: 'Permanent Marker', 'Segoe Print', cursive; font-size: calc(var(--scale, 1) * 7.4cqw); color: #fff;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55), 0 0 8px rgba(0, 0, 0, 0.6);
+}
+.cassette-side { position: absolute; z-index: 1; right: 2.6%; bottom: 3%; font: 700 2.5cqw/1 system-ui, sans-serif; letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.85); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+/* clear cassette: no label at all, the title is written straight on the plastic */
+.cassette-clear .cassette-label {
+  top: 3.5%; left: 7%; right: 7%; height: 15%; font-size: calc(var(--scale, 1) * 6cqw); transform: rotate(-1.2deg);
+  color: rgba(255, 255, 255, 0.94); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.cassette-clear { filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.5)); }
+.cassette-window { pointer-events: none; }
+.reel { transform-box: fill-box; transform-origin: center; animation: reel-spin 1.8s linear infinite; animation-play-state: paused; }
+.cassette.playing .reel { animation-play-state: running; }
+@keyframes reel-spin { to { transform: rotate(360deg); } }
+
+/* smoked-glass door over the bay: lifts as a cassette goes in or out, then latches */
+.deck-door {
+  position: absolute; inset: 0; pointer-events: none; transform-origin: top center;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.02) 42%, rgba(255, 255, 255, 0.07));
+  border-radius: 11px;
+}
+.deck-bay.inserting .deck-door { animation: door-close 0.9s ease-in-out both; }
+.deck-bay.ejecting .deck-door { animation: door-open 0.65s ease-in-out both; }
+@keyframes door-close { 0%, 45% { transform: perspective(600px) rotateX(-82deg); opacity: 0.4; } 100% { transform: none; opacity: 1; } }
+@keyframes door-open { from { transform: none; } to { transform: perspective(600px) rotateX(-82deg); opacity: 0.4; } }
+.cassette-wrap.inserting { animation: cassette-in 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.cassette-wrap.ejecting { animation: cassette-out 0.65s ease-in both; }
+@keyframes cassette-in {
+  0% { transform: translateY(-125%) rotate(-8deg); opacity: 0; }
+  25% { opacity: 1; }
+  68% { transform: translateY(7%) rotate(1.5deg); }
+  100% { transform: none; }
+}
+@keyframes cassette-out {
+  0% { transform: none; }
+  35% { transform: translateY(5%); }
+  100% { transform: translateY(-125%) rotate(7deg); opacity: 0; }
+}
+
+.deck-panel { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.deck-readout { display: flex; align-items: center; gap: 10px; min-width: 84px; }
+.deck-led { width: 11px; height: 11px; border-radius: 50%; background: #4a1620; box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5); transition: background 0.15s, box-shadow 0.15s; }
+.deck-led.on { background: #ff3b4a; box-shadow: 0 0 9px 2px rgba(255, 59, 74, 0.7); }
+.deck-lcd {
+  min-width: 54px; padding: 4px 9px; text-align: center; border-radius: 6px; background: #10281a; border: 2px solid #07150d;
+  font: 700 24px/1 'Courier New', ui-monospace, monospace; letter-spacing: 0.08em; color: #b8ff9a; text-shadow: 0 0 6px rgba(120, 255, 120, 0.55);
+}
+.deck-keys { display: flex; gap: 10px; }
+.deck-key {
+  width: 60px; height: 52px; display: grid; place-items: center; padding: 0; border-radius: 8px; color: #2a1d55;
+  background: linear-gradient(180deg, #f1ecff, #bdb2dd); border: 2px solid #1a1236; box-shadow: 0 5px 0 #5f539a;
+  transition: transform 0.06s, box-shadow 0.06s;
+}
+.deck-key.play { background: linear-gradient(180deg, #ffb2da, #ff5fb0); color: #3a0a2a; box-shadow: 0 5px 0 #a02a72; }
+.deck-key:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 #5f539a; }
+.deck-key.play:active:not(:disabled) { box-shadow: 0 1px 0 #a02a72; }
+.deck-key:disabled { opacity: 0.4; box-shadow: 0 2px 0 #5f539a; transform: translateY(3px); }
+.deck-key svg { width: 26px; height: 26px; }
+@media (max-width: 380px) { .deck-key { width: 52px; } .deck-readout { min-width: 70px; } }
+
+/* ---- customize: title and cassette style ---- */
+.customize-bar { display: flex; justify-content: center; align-items: center; gap: 14px; margin: -8px 0 10px; }
+.customize-bar .link:disabled { opacity: 0.4; }
+.journal-open { padding: 8px 22px; border-radius: 999px; font-size: 15px; }
+.customizer { max-width: 560px; margin: 0 auto 20px; padding: 14px; display: flex; flex-direction: column; gap: 12px; background: var(--panel); border: 2px solid var(--line); border-radius: 18px; }
+.customizer-field { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 14px; font-weight: 700; }
+.customizer-field input { padding: 12px 14px; border-radius: 12px; border: 2px solid #5b2cb5; font-size: 16px; font-weight: 400; }
+.style-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.style-option { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 8px 10px; color: var(--text); font-size: 13px; background: rgba(255, 255, 255, 0.05); border: 3px solid transparent; border-radius: 14px; }
+.style-option.on { border-color: var(--accent); background: rgba(255, 95, 176, 0.14); }
+.style-option .cassette { width: 100%; padding: 0; background: radial-gradient(ellipse at 50% 20%, #1d1236, #0a0518 80%); border-radius: 8px; filter: none; }
+.customizer-hint { text-align: left; font-size: 13px; }
+.customizer .error { max-width: none; text-align: left; }
+.customizer-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.customizer-actions .action:only-child { margin-left: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .cassette-wrap, .deck-door { animation: none !important; }
+  .reel { animation: none; }
+  .journal-sheet { animation: none; }
+}
+
+/* ---- journal: a lined notebook, one page per album, one numbered line per song ---- */
+.journal {
+  --paper: #fff7df; --ink-pen: #1b2f9a; --rule: rgba(36, 6, 87, 0.2);
+  display: flex; flex-direction: column; min-height: 0; max-height: inherit; overflow: hidden;
+  background: var(--paper); color: #2a2140; border: 3px solid var(--outline); border-radius: 18px;
+  box-shadow: 4px 6px 0 var(--ink);
+}
+.journal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; border-bottom: 3px double #d86a8c; flex: none; }
+.journal-head-text { min-width: 0; }
+.journal-title { margin: 0; font: 400 24px/1.1 'Permanent Marker', 'Segoe Print', cursive; color: var(--ink-pen); overflow-wrap: anywhere; }
+.journal-count { margin: 4px 0 0; font-size: 14px; color: #6a5a98; font-weight: 600; }
+.journal.finished .journal-count { color: #a02a72; }
+.journal-head .np-close { background: rgba(36, 6, 87, 0.1); color: #2a2140; }
+.journal-pager { display: flex; align-items: center; justify-content: space-between; padding: 2px 10px; font-size: 14px; font-weight: 700; color: #6a5a98; flex: none; border-bottom: 1px solid var(--rule); }
+.journal-pager .link { color: #a02a72; font-size: 26px; line-height: 1; padding: 6px 14px; }
+.journal-pager .link:disabled { opacity: 0.25; }
+.journal-page { list-style: none; margin: 0; padding: 0 0 6px; flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.slot { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: start; gap: 6px; padding: 8px 12px 6px 10px; border-bottom: 1px solid var(--rule); }
+.slot-no { padding-top: 6px; text-align: center; font: 700 16px/1.2 'Courier New', ui-monospace, monospace; color: #a02a72; border-right: 2px solid #f0a3b8; }
+.slot.now { background: rgba(255, 211, 77, 0.42); }
+.slot.now .slot-no { color: #3a0a2a; }
+.slot-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.slot-title {
+  font: 400 22px/1 'Modak', 'Chango', 'Arial Rounded MT Bold', system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.03em; padding-top: 8px;
+  color: #ff5fb0; overflow-wrap: anywhere;
+  text-shadow: 1.5px 0 var(--outline), -1.5px 0 var(--outline), 0 1.5px var(--outline), 0 -1.5px var(--outline), 2px 3px 0 var(--ink);
+}
+.slot textarea {
+  display: block; width: 100%; min-height: 34px; margin: 0; padding: 5px 2px; resize: none; overflow: hidden;
+  font: 400 18px/1.3 'Permanent Marker', 'Segoe Print', cursive; color: var(--ink-pen);
+  background: transparent; border: 0; border-radius: 6px; outline: 0;
+}
+.slot textarea::placeholder { color: rgba(36, 6, 87, 0.3); }
+.slot textarea:focus { background: rgba(255, 255, 255, 0.6); box-shadow: 0 0 0 2px var(--accent); }
+.slot-count { align-self: flex-end; font-size: 12px; color: #6a5a98; }
+.slot.retrying textarea, .slot.rejected textarea { background: rgba(255, 155, 176, 0.25); }
+.slot-error { color: #b0153d; font-size: 13px; font-weight: 600; }
+.journal-sync { margin: 0; padding: 8px 14px; flex: none; font-size: 13px; font-weight: 700; color: #6a5a98; border-top: 1px solid var(--rule); }
+.journal-sync.retrying, .journal-sync.rejected { color: #b0153d; background: rgba(255, 155, 176, 0.25); }
+
+.journal-sheet {
+  position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; background: var(--backdrop); background-color: var(--bg);
+  padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom)); animation: np-in 0.28s ease-out;
+}
+.journal-sheet .journal { flex: 1; max-height: none; max-width: 640px; width: 100%; margin: 0 auto; }
+
+/* Wide enough for the deck and a notebook side by side (iPad landscape): the journal stays in view as the page scrolls. */
+@media (min-width: 1000px) {
+  .tapedeck-layout.docked { display: grid; grid-template-columns: minmax(0, 560px) minmax(340px, 1fr); gap: 32px; align-items: start; }
+  .tapedeck-layout.docked .deck { margin-left: 0; margin-right: 0; }
+  .journal-dock { position: sticky; top: 76px; margin-top: 14px; max-height: calc(100vh - 100px); max-height: calc(100dvh - 100px); display: flex; flex-direction: column; max-width: 560px; }
+  .journal-dock .journal { flex: 1 1 auto; }
+}

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createSession, fetchLibrary } from './api';
+import { createSession, fetchLibrary, saveTapeProgress } from './api';
 import { friendlyError } from './auth';
 import LibraryView from './Library';
 import { passkeysAvailable, registerPasskey } from './passkeys';
 import PlayerBar from './PlayerBar';
 import { PlayerProvider } from './player';
+import { useTapes } from './tapes';
 import type { Library, Track } from './types';
 
 const SESSION_REFRESH_MS = 60 * 60 * 1000;
@@ -13,6 +14,7 @@ export default function Home({ email, onSignOut }: { email: string; onSignOut: (
   const [library, setLibrary] = useState<Library | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [deckVisible, setDeckVisible] = useState(false);
 
   async function onAddPasskey() {
     setNotice('');
@@ -50,8 +52,15 @@ export default function Home({ email, onSignOut }: { email: string; onSignOut: (
     return key ? `/${key}` : null;
   }, [albumArt]);
 
+  const tapes = useTapes();
+  const { recordProgress } = tapes;
+  const onTapeProgress = useCallback((cassetteId: string, index: number, positionSec: number) => {
+    recordProgress(cassetteId, index, positionSec);
+    saveTapeProgress(cassetteId, index, positionSec).catch(() => undefined);
+  }, [recordProgress]);
+
   return (
-    <PlayerProvider artFor={artFor}>
+    <PlayerProvider artFor={artFor} onTapeProgress={onTapeProgress}>
       <div className="app">
         <header className="topbar">
           <h1>Charybdis</h1>
@@ -64,9 +73,9 @@ export default function Home({ email, onSignOut }: { email: string; onSignOut: (
         <main className="content">
           {error && <p className="error" role="alert">{error}</p>}
           {!library && !error && <p className="muted center-text">Loading library…</p>}
-          {library && <LibraryView library={library} artFor={artFor} />}
+          {library && <LibraryView library={library} artFor={artFor} tapes={tapes} onDeckVisible={setDeckVisible} />}
         </main>
-        <PlayerBar artFor={artFor} />
+        <PlayerBar artFor={artFor} hideTapeBar={deckVisible} />
       </div>
     </PlayerProvider>
   );

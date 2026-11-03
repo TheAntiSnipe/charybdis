@@ -6,19 +6,24 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
     "preview": "vite preview"
   },
   "dependencies": {
     "@fontsource/modak": "^5.3.0",
+    "@fontsource/permanent-marker": "^5.3.0",
     "amazon-cognito-identity-js": "^6.3.12",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^6.2.1",
+    "jsdom": "^29.1.1",
     "typescript": "^5.6.3",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0"
   }
 }

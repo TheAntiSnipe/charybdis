@@ -21,6 +21,8 @@ Stored in the existing single table. IDs are deterministic so "one per album/art
 CASSETTE  sk = "album:<albumId>" | "artist:<sha1(artist name)>"
   kind          "album" | "artist"
   label         text sharpied on the spine (album or artist name)
+  title         optional custom name; shown instead of label everywhere (spine, cassette, lock screen)
+  style         optional: "generated" (default) | "cover" | "executive" | "clear"
   trackIds[]    frozen at creation (path-hash ids are stable across re-ingests)
   slots[]       [{ trackId, albumId }] derived from trackIds, used to group journal pages
   progress      { index, positionSec, updatedAt }
@@ -42,6 +44,7 @@ New Lambda `CassetteFunction` with read/write on the table. The existing library
 | `GET /api/cassettes` | all cassettes and all entries |
 | `POST /api/cassettes` `{kind, sourceId}` | server builds `trackIds` from TRACK/ALBUM items; 409 if it exists |
 | `PUT /api/cassettes/{id}/progress` `{index, positionSec}` | resume point |
+| `PUT /api/cassettes/{id}/settings` `{title?, style?}` | custom title (max 40 characters; `null` or blank goes back to the album or artist name) and cassette style (`generated` \| `cover` \| `executive` \| `clear`) |
 | `PUT /api/cassettes/{id}/entries/{slot}` `{text}` | save a note; empty text clears it; recomputes finished state |
 
 All routes sit behind the existing Cognito JWT authorizer. The server validates ids, slot range and text length.
@@ -66,11 +69,20 @@ This is a UX boundary, not a security one: the audio URLs are visible in browser
 - **Finished:** tape animates to the finished shelf; journal pages show titles in Modak next to the notes.
 
 ## Phases
-1. **Backend:** table entities, `CassetteFunction`, IAM, `template.yaml`, request validation. Deploy with `sam deploy`.
-2. **Blind player mode:** tape mode in `PlayerProvider`, `MediaSession` lockdown, progress save and resume.
-3. **Shelf and creation:** tab, picker, "Make cassette" button, cassette spine rendering.
-4. **Deck:** SVG deck, load and eject animation, synthesised sounds, deck controls.
-5. **Journal:** pages and slots, autosave, finish logic, finished shelf, title reveal.
+Status: phases 1 to 5 done (phase 5 not deployed yet). Phase 6 (polish) is not started.
+
+1. **Backend (done):** table entities, `CassetteFunction`, IAM, `template.yaml`, request validation, tests in `tests/`. Deploy with `sam deploy`.
+2. **Blind player mode (done):** tape mode in `PlayerProvider` (`loadTape`, `rewind`, `eject`; `current` stays null), generic lock-screen title (`<album> cassette` / `<artist> mixtape`), no skip or seek actions, progress saved every 15 s and on pause, hide and eject. A tape loads paused so the deck's play button satisfies iOS's tap-to-play rule. Unit tests in `web/src/player.test.tsx`. Needs a check on a real iPhone and iPad: iOS may still draw its own scrubber from the audio element, in which case the fallback is a different playback path.
+3. **Shelf and creation (done):** Tape deck tab, Albums/Artists picker, "Make cassette" button on album pages, spines on a two-shelf bookcase (to listen / finished) in a bundled marker font (`@fontsource/permanent-marker`). Tapping a spine loads the tape; a stand-in tape bar (play/pause, rewind, eject, "Song n of N") replaces the full deck until phase 4. A tape whose songs are no longer in the library refuses to load.
+4. **Deck (done):** `web/src/Deck.tsx` and `web/src/CassetteArt.tsx`: an old-style deck with a smoked-glass door and a realistic cassette drawn in SVG (ribbed shell whose colour matches its spine, pill-shaped reel window with turning hubs, the four holes and trapezoid along the bottom, "SIDE A"). Also a green LCD showing the song number (`--` when empty, `END` at the end of the tape), a red LED, and rewind / play-pause / eject keys. Tapping a spine slides the cassette in and the door latches; eject pops it out. Sounds are synthesised with Web Audio in `deckSound.ts` (no audio files): a clunk timed to the animation, an eject spring, key ticks. There is deliberately no mute button; on iPhone the silent switch mutes them. Reduced-motion users get no animation but keep the sounds. While the Tape deck tab is open the deck is the only control; on other tabs the compact tape bar stays. The deck scrolls into view when you pick a tape.
+   **Customize (done):** a "Customize this cassette" panel under the deck, for the loaded tape. A custom title (max 40 characters) replaces the album or artist name on the spine, the cassette and the lock screen. Four styles, each shown as a live thumbnail of the tape itself:
+   - *Generated* (default): a colourful abstract cover, the same every time for the same tape.
+   - *Album art*: the cover on the label (an artist mixtape shows a strip of up to four covers); falls back to the generated cover if there is no art or it fails to load.
+   - *Executive*: a blue-label blank modelled on a classic cassette: three writing lines with the title on the first, the tape length (`C-46`, `C-60`, `C-90`, `C-120`) computed from the real running time, `SIDE A`, "QUALITY CASSETTE", "HIGH ENERGY MASTERING", and an original diamond mark. It deliberately does not reproduce another company's logo, name or phone number; the wording lives in `CassetteArt.tsx`.
+   - *Clear*: a see-through shell with no label (the title is written on the plastic) showing the tape moving from the left reel to the right as the whole tape plays. The film follows exact tangents (`web/src/tapeGeometry.ts`): it peels off the left spool's lower left, wraps the left guide roller, runs flat along the bottom, wraps the right roller and winds onto the right spool's lower right, at every point through the tape (tested). The tape is conserved as area, so the two packs always hold the same total. It is the one place progress is visible, and it is whole-tape progress, not time left in the song; the lock screen stays blind either way.
+   Idea for phase 5: the reference cassette prints a track list down the left of the label; ours could show numbered blank lines that fill in with the user's own marker notes as they write them.
+5. **Journal (done):** `web/src/Journal.tsx` (the notebook) and `web/src/journalSave.ts` (autosave, wired into `useTapes`). One page per album with a pager, one numbered line per song (the numbers match the deck's LCD), notes in the marker font on cream lined paper, the playing song highlighted, and the notebook opening at (and following) the playing page. Wide screens (min-width 1000px, iPad landscape) keep it docked beside the deck as a sticky panel; everywhere else a "Journal" button opens it as a full-screen sheet. Until the tape is finished the pages show only numbers (an artist tape's pages say "Page n", never the album name). Autosave: edits show at once and are sent 800 ms after typing pauses, on leaving a field, when the page is hidden (`keepalive`) and when the browser comes back online; one request at a time, so the server's "every slot filled" check cannot race; a failed save keeps the text and retries after 2, 5, 10, 20 then 30 s; a 4xx refusal (other than 401/403/408/429) is shown on the line and not retried. Reloading the shelf never overwrites unsaved text. The server decides when the tape is finished (every slot has text) and the reply moves it to the Finished shelf; once finished, each line shows the song title in Modak next to the note, and the page heading becomes the album title. Clearing a note reopens the tape and hides the titles again. The finish count is a consistent DynamoDB read so the last slot always counts. Tests: `web/src/journal.test.tsx`, `tests/test_cassettes.py`.
+   Not done: the idea above of filling the cassette label with the user's notes.
 6. **Polish:** accessibility, reduced motion, offline and failure states, README update.
 
 ## Open questions (defaults in bold)

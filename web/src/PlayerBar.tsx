@@ -1,15 +1,39 @@
 import { useCallback, useState } from 'react';
-import { NextIcon, PauseIcon, PlayIcon, PrevIcon, ShuffleIcon } from './icons';
+import { CassetteIcon, EjectIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon, ShuffleIcon } from './icons';
 import { Art } from './Library';
 import NowPlaying from './NowPlaying';
-import { usePlayer } from './player';
+import { tapeTitle, usePlayer } from './player';
 import SeekRow from './SeekRow';
 import type { Track } from './types';
 
-export default function PlayerBar({ artFor }: { artFor: (t: Track) => string | null }) {
-  const { current, playing, shuffle, toggleShuffle, toggle, next, prev } = usePlayer();
+export default function PlayerBar({ artFor, hideTapeBar = false }: { artFor: (t: Track) => string | null; hideTapeBar?: boolean }) {
+  const { current, playing, shuffle, tape, tapeEnded, toggleShuffle, toggle, next, prev, rewind, eject } = usePlayer();
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
+
+  // Compact stand-in for the deck on other tabs: play/pause, rewind this song, eject. No names, no clock, no skipping.
+  if (tape && hideTapeBar) return null;
+  if (tape) {
+    return (
+      <footer className="player">
+        <div className="player-inner">
+          <span className="pick-icon" aria-hidden><CassetteIcon /></span>
+          <span className="player-info">
+            <span className="track-title">{tapeTitle(tape.kind, tape.label)}</span>
+            <span className="track-sub">{tapeEnded ? 'End of tape' : `Song ${tape.slot + 1} of ${tape.total}`}</span>
+          </span>
+          <div className="controls">
+            <button aria-label="Rewind to the start of this song" onClick={rewind}><PrevIcon /></button>
+            <button aria-label={playing ? 'Pause' : 'Play'} className="primary" onClick={toggle}>
+              {playing ? <PauseIcon /> : <PlayIcon />}
+            </button>
+            <button aria-label="Eject tape" onClick={eject}><EjectIcon /></button>
+          </div>
+        </div>
+      </footer>
+    );
+  }
+
   if (!current) return null;
 
   return (
