@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from './api';
-import { RETRY_MS, SAVE_DELAY_MS } from './journalSave';
+import { DRAFTS_KEY, RETRY_MS, SAVE_DELAY_MS } from './journalSave';
 import PlayerBar from './PlayerBar';
 import { PlayerProvider } from './player';
 import TapeDeck from './TapeDeck';
@@ -13,6 +13,7 @@ vi.mock('./api', async (importOriginal) => ({
   fetchCassettes: vi.fn(),
   saveJournalEntry: vi.fn(),
   saveTapeProgress: vi.fn(),
+  deleteCassette: vi.fn(),
 }));
 
 const ID = 'album-aaaaaaaaaaaa';
@@ -33,11 +34,14 @@ describe('journalPages', () => {
 
 describe('journal autosave', () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.mocked(api.fetchCassettes).mockResolvedValue({ cassettes: [tape()], entries: [] });
   });
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
     vi.resetAllMocks();
+    localStorage.clear();
   });
 
   async function ready() {
@@ -167,6 +171,136 @@ describe('journal autosave', () => {
     expect(result.current.entries.find((e) => e.slot === 0)?.text).toBe('typed');
     expect(result.current.entries.find((e) => e.slot === 1)?.text).toBe('other');
   });
+  it('keeps unsaved notes in storage until the server confirms them', async () => {
+    let confirm!: () => void;
+    vi.mocked(api.saveJournalEntry).mockImplementation(() => new Promise((resolve) => { confirm = () => resolve(saved(0, 'draft')); }));
+    const { result } = await ready();
+    act(() => result.current.editEntry(ID, 0, 'draft'));
+    expect(JSON.parse(localStorage.getItem(DRAFTS_KEY)!)).toEqual([{ cassetteId: ID, slot: 0, text: 'draft' }]);
+    await wait(SAVE_DELAY_MS);
+    expect(localStorage.getItem(DRAFTS_KEY)).not.toBeNull();
+    await act(async () => confirm());
+    expect(localStorage.getItem(DRAFTS_KEY)).toBeNull();
+  });
+
+  it('also keeps a cleared note until the server has cleared it', async () => {
+    vi.mocked(api.fetchCassettes).mockResolvedValue({ cassettes: [tape()], entries: [{ cassetteId: ID, slot: 0, text: 'old', updatedAt: 1 }] });
+    const { result } = await ready();
+    act(() => result.current.editEntry(ID, 0, ''));
+    expect(JSON.parse(localStorage.getItem(DRAFTS_KEY)!)).toEqual([{ cassetteId: ID, slot: 0, text: '' }]);
+  });
+
+  it('sends notes left over from an earlier visit and shows them', async () => {
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify([{ cassetteId: ID, slot: 1, text: 'from last time' }]));
+    let confirm!: () => void;
+    vi.mocked(api.saveJournalEntry).mockImplementation(() => new Promise((resolve) => { confirm = () => resolve(saved(1, 'from last time')); }));
+    const { result } = renderHook(() => useTapes());
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    await waitFor(() => expect(api.saveJournalEntry).toHaveBeenCalledWith(ID, 1, 'from last time', false));
+    expect(result.current.entries).toEqual([expect.objectContaining({ slot: 1, text: 'from last time' })]);
+    await act(async () => confirm());
+    expect(localStorage.getItem(DRAFTS_KEY)).toBeNull();
+  });
+
+  it('survives the app closing while offline, then saves on the next launch', async () => {
+    vi.mocked(api.saveJournalEntry).mockRejectedValue(new api.ApiError('offline', 0));
+    const first = await ready();
+    act(() => first.result.current.editEntry(ID, 0, 'written on a train'));
+    await wait(SAVE_DELAY_MS);
+    expect(first.result.current.journalSync).toBe('retrying');
+    first.unmount();
+    vi.useRealTimers();
+
+    vi.mocked(api.saveJournalEntry).mockResolvedValue(saved(0, 'written on a train'));
+    renderHook(() => useTapes());
+    await waitFor(() => expect(api.saveJournalEntry).toHaveBeenLastCalledWith(ID, 0, 'written on a train', false));
+    await waitFor(() => expect(localStorage.getItem(DRAFTS_KEY)).toBeNull());
+  });
+
+  it('does not keep a note the server refused', async () => {
+    vi.mocked(api.saveJournalEntry).mockRejectedValue(new api.ApiError('no', 400));
+    const { result } = await ready();
+    act(() => result.current.editEntry(ID, 0, 'x'));
+    await wait(SAVE_DELAY_MS);
+    expect(result.current.journalSync).toBe('rejected');
+    expect(localStorage.getItem(DRAFTS_KEY)).toBeNull();
+  });
+
+  it('ignores a damaged or foreign stored value', async () => {
+    localStorage.setItem(DRAFTS_KEY, '{not json');
+    const { result } = renderHook(() => useTapes());
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify([{ cassetteId: 5, slot: 'x' }, null, 'text']));
+    renderHook(() => useTapes());
+    await waitFor(() => expect(api.fetchCassettes).toHaveBeenCalledTimes(2));
+    expect(api.saveJournalEntry).not.toHaveBeenCalled();
+  });
+
+  it('drops stored notes for a tape that no longer exists', async () => {
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify([{ cassetteId: 'album-gone00000000', slot: 0, text: 'orphan' }]));
+    vi.mocked(api.saveJournalEntry).mockRejectedValue(new api.ApiError('offline', 0));
+    const { result } = renderHook(() => useTapes());
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    await waitFor(() => expect(localStorage.getItem(DRAFTS_KEY)).toBeNull());
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.journalSync).toBe('saved');
+  });
+
+  it('retries a failed load when the connection comes back', async () => {
+    vi.mocked(api.fetchCassettes).mockRejectedValueOnce(new api.ApiError('Can’t reach Charybdis.', 0));
+    const { result } = renderHook(() => useTapes());
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    await act(async () => { window.dispatchEvent(new Event('online')); });
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current.cassettes).toHaveLength(1);
+  });
+
+  describe('deleting a tape', () => {
+    it('removes the tape, its notes and any unsaved draft once the server has done it', async () => {
+      vi.mocked(api.fetchCassettes).mockResolvedValue({
+        cassettes: [tape(), tape({ id: 'album-bbbbbbbbbbbb', sourceId: 'bbbbbbbbbbbb' })],
+        entries: [{ cassetteId: ID, slot: 0, text: 'mine', updatedAt: 1 }, { cassetteId: 'album-bbbbbbbbbbbb', slot: 0, text: 'other', updatedAt: 1 }],
+      });
+      vi.mocked(api.deleteCassette).mockResolvedValue();
+      const { result } = await ready();
+      act(() => result.current.editEntry(ID, 1, 'unsaved'));
+      await act(async () => { await result.current.remove(ID); });
+      expect(api.deleteCassette).toHaveBeenCalledWith(ID);
+      expect(result.current.cassettes.map((c) => c.id)).toEqual(['album-bbbbbbbbbbbb']);
+      expect(result.current.entries.map((e) => e.text)).toEqual(['other']);
+      expect(localStorage.getItem(DRAFTS_KEY)).toBeNull();
+      await wait(SAVE_DELAY_MS);
+      expect(api.saveJournalEntry).not.toHaveBeenCalled();
+    });
+
+    it('leaves everything alone when the server refuses', async () => {
+      vi.mocked(api.deleteCassette).mockRejectedValue(new api.ApiError('Can’t reach Charybdis.', 0));
+      const { result } = await ready();
+      await act(async () => { await expect(result.current.remove(ID)).rejects.toThrow('Can’t reach'); });
+      expect(result.current.cassettes).toHaveLength(1);
+    });
+
+    it('does not report the place of a tape that was just deleted', async () => {
+      vi.mocked(api.deleteCassette).mockResolvedValue();
+      vi.mocked(api.saveTapeProgress).mockResolvedValue();
+      const { result } = await ready();
+      await act(async () => { await result.current.remove(ID); });
+      act(() => result.current.recordProgress(ID, 1, 20)); // what ejecting the tape does
+      expect(api.saveTapeProgress).not.toHaveBeenCalled();
+    });
+  });
+
+  it('saves the place on the tape, and keeps trying if that fails', async () => {
+    vi.mocked(api.saveTapeProgress).mockRejectedValueOnce(new api.ApiError('offline', 0)).mockResolvedValue();
+    const { result } = await ready();
+    act(() => result.current.recordProgress(ID, 1, 30));
+    await wait(0);
+    expect(api.saveTapeProgress).toHaveBeenCalledTimes(1);
+    act(() => { window.dispatchEvent(new Event('online')); });
+    await wait(0);
+    expect(api.saveTapeProgress).toHaveBeenCalledTimes(2);
+    expect(api.saveTapeProgress).toHaveBeenLastCalledWith(ID, 1, 30);
+  });
 });
 
 describe('Journal screen', () => {
@@ -189,9 +323,10 @@ describe('Journal screen', () => {
 
   const editEntry = vi.fn();
   const flushEntries = vi.fn();
+  const remove = vi.fn();
   function Harness({ cassettes, entries = [], sync = 'saved' }: { cassettes: Cassette[]; entries?: JournalEntry[]; sync?: 'saved' | 'saving' | 'retrying' | 'rejected' }) {
     const store = {
-      cassettes, entries, status: 'ready' as const, error: '', create: vi.fn(), update: vi.fn(), reload: vi.fn(),
+      cassettes, entries, status: 'ready' as const, error: '', create: vi.fn(), update: vi.fn(), remove, reload: vi.fn(),
       recordProgress: vi.fn(), progressOf: (t: Cassette) => t.progress,
       editEntry, flushEntries, entryStates: {}, journalSync: sync,
     };
@@ -305,5 +440,61 @@ describe('Journal screen', () => {
     openJournal();
     fireEvent.click(screen.getByRole('button', { name: 'Close journal' }));
     expect(screen.queryByRole('dialog', { name: 'Journal' })).toBeNull();
+  });
+
+  describe('deleting from the customize panel', () => {
+    const open = (entries: JournalEntry[] = []) => {
+      render(<Harness cassettes={[mixtape()]} entries={entries} />);
+      load(/Mixtape: Public Artist/);
+      fireEvent.click(screen.getByRole('button', { name: 'Customize this cassette' }));
+    };
+
+    it('asks first, saying how many notes go with it, and can be called off', () => {
+      const entries: JournalEntry[] = [0, 1].map((slot) => ({ cassetteId: 'artist-bbbbbbbbbbbbbbbb', slot, text: `n${slot}`, updatedAt: 1 }));
+      open(entries);
+      fireEvent.click(screen.getByRole('button', { name: /Delete this cassette/ }));
+      const confirm = screen.getByRole('group', { name: 'Confirm delete' });
+      expect(confirm.textContent).toContain('Delete “Public Artist” and its 2 notes?');
+      expect(remove).not.toHaveBeenCalled();
+      fireEvent.click(within(confirm).getByRole('button', { name: 'Keep it' }));
+      expect(screen.queryByRole('group', { name: 'Confirm delete' })).toBeNull();
+      expect(remove).not.toHaveBeenCalled();
+    });
+
+    it('does not mention notes when there are none', () => {
+      open();
+      fireEvent.click(screen.getByRole('button', { name: /Delete this cassette/ }));
+      expect(screen.getByRole('group', { name: 'Confirm delete' }).textContent).not.toContain('note');
+    });
+
+    it('deletes, takes the tape out of the deck and says so', async () => {
+      remove.mockResolvedValue(undefined);
+      open();
+      fireEvent.click(screen.getByRole('button', { name: /Delete this cassette/ }));
+      fireEvent.click(within(screen.getByRole('group', { name: 'Confirm delete' })).getByRole('button', { name: 'Delete' }));
+      await waitFor(() => expect(screen.getByText('Public Artist was taken off the shelf.')).toBeTruthy());
+      expect(remove).toHaveBeenCalledWith('artist-bbbbbbbbbbbbbbbb');
+      expect((screen.getByRole('button', { name: 'Eject tape' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('keeps the tape and explains when the delete fails', async () => {
+      remove.mockRejectedValue(new Error('Can’t reach Charybdis. Check your connection and try again.'));
+      open();
+      fireEvent.click(screen.getByRole('button', { name: /Delete this cassette/ }));
+      fireEvent.click(within(screen.getByRole('group', { name: 'Confirm delete' })).getByRole('button', { name: 'Delete' }));
+      await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Can’t reach Charybdis'));
+      expect((screen.getByRole('button', { name: 'Eject tape' }) as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.getByRole('button', { name: /Delete this cassette/ })).toBeTruthy();
+    });
+  });
+
+  it('says so when the device is offline', () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    try {
+      render(<Harness cassettes={[mixtape()]} />);
+      expect(screen.getByText(/You’re offline/).getAttribute('role')).toBe('status');
+    } finally {
+      Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    }
   });
 });

@@ -4,6 +4,7 @@ import Deck, { INSERT_CLUNK_S, prefersReducedMotion } from './Deck';
 import { playInsert } from './deckSound';
 import { CassetteIcon } from './icons';
 import Journal from './Journal';
+import { useOnline } from './online';
 import { Art } from './Library';
 import { usePlayer } from './player';
 import {
@@ -176,15 +177,19 @@ function Picker({ library, tapes, onMade }: { library: Library; tapes: TapeStore
 }
 
 /** Name the loaded tape and choose how it looks. Style applies at once; the title applies when you finish typing. */
-function Customizer({ tape, tapes, covers, totalSec, onClose }: {
+function Customizer({ tape, tapes, covers, totalSec, noteCount, onDelete, onClose }: {
   tape: Cassette;
   tapes: TapeStore;
   covers: string[];
   totalSec: number;
+  noteCount: number;
+  onDelete: () => Promise<void>;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState(tape.title ?? '');
   const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const current = styleOf(tape);
   const shell = spineLook(tape).shell;
 
@@ -201,6 +206,18 @@ function Customizer({ tape, tapes, covers, totalSec, onClose }: {
   function commitTitle() {
     const next = draft.trim();
     if (next !== (tape.title ?? '')) void save({ title: next || null });
+  }
+
+  async function remove() {
+    setDeleting(true);
+    setError('');
+    try {
+      await onDelete(); // on success this panel goes away with the tape
+    } catch (err) {
+      setError((err as Error).message);
+      setDeleting(false);
+      setConfirming(false);
+    }
   }
 
   return (
@@ -251,6 +268,25 @@ function Customizer({ tape, tapes, covers, totalSec, onClose }: {
         )}
         <button className="action" onClick={() => { commitTitle(); onClose(); }}>Done</button>
       </div>
+
+      <div className="danger-zone">
+        {!confirming ? (
+          <button className="link danger" onClick={() => setConfirming(true)}>Delete this cassette…</button>
+        ) : (
+          <div role="group" aria-label="Confirm delete" className="confirm-delete">
+            <p>
+              Delete “{displayTitle(tape)}”{noteCount > 0 && ` and its ${noteCount} ${noteCount === 1 ? 'note' : 'notes'}`}?
+              This can’t be undone. You can make the cassette again, but it will start blank.
+            </p>
+            <div className="customizer-actions">
+              <button className="secondary" disabled={deleting} onClick={() => setConfirming(false)}>Keep it</button>
+              <button className="action danger" disabled={deleting} onClick={() => void remove()}>
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -299,6 +335,15 @@ export default function TapeDeck({ library, tapes, resolve, onVisible }: {
     if (!loadedTape) setCustomizing(false);
   }, [loadedTape]);
 
+  const online = useOnline();
+
+  // The server goes first: if it refuses, the tape stays in the deck and the panel says why.
+  async function removeTape(tape: Cassette) {
+    await tapes.remove(tape.id);
+    if (player.tape?.id === tape.id) player.eject();
+    setMessage(`${displayTitle(tape)} was taken off the shelf.`);
+  }
+
   const shelf = tapes.cassettes.filter((c) => c.status !== 'finished');
   const finished = tapes.cassettes.filter((c) => c.status === 'finished');
   const byNewest = (a: Cassette, b: Cassette) => b.createdAt - a.createdAt;
@@ -334,8 +379,15 @@ export default function TapeDeck({ library, tapes, resolve, onVisible }: {
           tapes={tapes}
           covers={coversFor(loadedTape)}
           totalSec={player.tape.totalSec}
+          noteCount={tapes.entries.filter((e) => e.cassetteId === loadedTape.id && e.text.trim()).length}
+          onDelete={() => removeTape(loadedTape)}
           onClose={() => setCustomizing(false)}
         />
+      )}
+      {!online && (
+        <p className="offline-note" role="status">
+          You’re offline. Notes you write are kept on this device and saved when you’re back; changes to the shelf wait for a connection.
+        </p>
       )}
       <div className="deck-head">
         <p className="muted deck-note">

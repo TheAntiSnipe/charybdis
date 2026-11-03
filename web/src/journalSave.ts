@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import { ApiError, saveJournalEntry } from './api';
+import { isRetryable, saveJournalEntry } from './api';
 import type { Cassette, JournalEntry } from './types';
 
 export const MAX_NOTE = 280; // mirrors api/cassettes.py
@@ -24,15 +24,36 @@ interface Draft {
 
 export const slotKey = (cassetteId: string, slot: number) => `${cassetteId}#${slot}`;
 
-// A refusal that retrying cannot fix. Network failures, timeouts, throttling and server errors are worth another go.
-function isFinal(err: unknown): boolean {
-  if (!(err instanceof ApiError)) return false;
-  return err.status >= 400 && err.status < 500 && ![401, 403, 408, 429].includes(err.status);
+export const DRAFTS_KEY = 'charybdis.journal.drafts';
+
+/** Notes not yet confirmed by the server survive the app being closed or killed; they are sent again on the next launch. */
+function loadDrafts(): Draft[] {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((d) => d && typeof d.cassetteId === 'string' && Number.isInteger(d.slot) && d.slot >= 0 && typeof d.text === 'string')
+      .map((d) => ({ cassetteId: d.cassetteId, slot: d.slot, text: d.text.slice(0, MAX_NOTE), state: 'saving' as SlotState, queued: true, sending: false, failures: 0 }));
+  } catch {
+    return [];
+  }
+}
+
+function storeDrafts(drafts: Iterable<Draft>) {
+  try {
+    // A refused note is not kept: it would be refused again at every launch.
+    const list = [...drafts].filter((d) => d.state !== 'rejected').map((d) => ({ cassetteId: d.cassetteId, slot: d.slot, text: d.text }));
+    if (list.length) localStorage.setItem(DRAFTS_KEY, JSON.stringify(list));
+    else localStorage.removeItem(DRAFTS_KEY);
+  } catch {
+    // Storage can be full or blocked (private browsing); notes still save over the network.
+  }
 }
 
 /**
  * Autosaves notes. Edits show at once; each slot is saved after a pause in typing, one request at a time
  * (so the server's "every slot filled" check never races), and a failed save keeps the text and retries.
+ * Unsaved notes are also kept in localStorage until the server confirms them.
  */
 export function useJournal(
   setEntries: Dispatch<SetStateAction<JournalEntry[]>>,
@@ -42,10 +63,12 @@ export function useJournal(
   const busy = useRef(false);
   const [slots, setSlots] = useState<Record<string, { state: SlotState; error?: string }>>({});
 
+  // Called after every change to the drafts, so the screen and the stored copy never disagree.
   const publish = useCallback(() => {
     const next: Record<string, { state: SlotState; error?: string }> = {};
     for (const [key, d] of drafts.current) next[key] = { state: d.state, error: d.error };
     setSlots(next);
+    storeDrafts(drafts.current.values());
   }, []);
 
   const pump: (keepalive?: boolean) => Promise<void> = useCallback(
@@ -77,7 +100,7 @@ export function useJournal(
       } catch (err) {
         // A draft that is no longer "saving" was edited meanwhile; its own timer will send the newer text.
         if (draft.state === 'saving') {
-          if (isFinal(err)) {
+          if (!isRetryable(err)) {
             draft.state = 'rejected';
             draft.error = (err as Error).message;
           } else {
@@ -155,6 +178,35 @@ export function useJournal(
     return [...kept, ...mine];
   }, []);
 
+  /** Drops the unsaved notes of tapes that no longer exist (deleted here or on another device). */
+  const forget = useCallback(
+    (gone: (cassetteId: string) => boolean) => {
+      let changed = false;
+      for (const [key, d] of drafts.current) {
+        if (!gone(d.cassetteId)) continue;
+        window.clearTimeout(d.timer);
+        d.state = 'rejected'; // an in-flight save of it must not schedule a retry
+        d.queued = false;
+        drafts.current.delete(key);
+        changed = true;
+      }
+      if (changed) publish();
+    },
+    [publish],
+  );
+
+  // Notes left unsaved by a previous visit go out first thing.
+  useEffect(() => {
+    let restored = false;
+    for (const d of loadDrafts()) {
+      const key = slotKey(d.cassetteId, d.slot);
+      if (drafts.current.has(key)) continue;
+      drafts.current.set(key, d);
+      restored = true;
+    }
+    if (restored) flush();
+  }, [flush]);
+
   useEffect(() => {
     const hidden = () => document.visibilityState === 'hidden' && flush(true);
     const online = () => flush();
@@ -180,5 +232,5 @@ export function useJournal(
         ? 'saving'
         : 'saved';
 
-  return { slots, sync, edit, flush, overlay };
+  return { slots, sync, edit, flush, overlay, forget };
 }

@@ -46,6 +46,7 @@ New Lambda `CassetteFunction` with read/write on the table. The existing library
 | `PUT /api/cassettes/{id}/progress` `{index, positionSec}` | resume point |
 | `PUT /api/cassettes/{id}/settings` `{title?, style?}` | custom title (max 40 characters; `null` or blank goes back to the album or artist name) and cassette style (`generated` \| `cover` \| `executive` \| `clear`) |
 | `PUT /api/cassettes/{id}/entries/{slot}` `{text}` | save a note; empty text clears it; recomputes finished state |
+| `DELETE /api/cassettes/{id}` | deletes the cassette and all of its notes (notes first, so a failure part-way can be retried); succeeds if it is already gone |
 
 All routes sit behind the existing Cognito JWT authorizer. The server validates ids, slot range and text length.
 
@@ -83,11 +84,11 @@ Status: phases 1 to 5 done (phase 5 not deployed yet). Phase 6 (polish) is not s
    Idea for phase 5: the reference cassette prints a track list down the left of the label; ours could show numbered blank lines that fill in with the user's own marker notes as they write them.
 5. **Journal (done):** `web/src/Journal.tsx` (the notebook) and `web/src/journalSave.ts` (autosave, wired into `useTapes`). One page per album with a pager, one numbered line per song (the numbers match the deck's LCD), notes in the marker font on cream lined paper, the playing song highlighted, and the notebook opening at (and following) the playing page. Wide screens (min-width 1000px, iPad landscape) keep it docked beside the deck as a sticky panel; everywhere else a "Journal" button opens it as a full-screen sheet. Until the tape is finished the pages show only numbers (an artist tape's pages say "Page n", never the album name). Autosave: edits show at once and are sent 800 ms after typing pauses, on leaving a field, when the page is hidden (`keepalive`) and when the browser comes back online; one request at a time, so the server's "every slot filled" check cannot race; a failed save keeps the text and retries after 2, 5, 10, 20 then 30 s; a 4xx refusal (other than 401/403/408/429) is shown on the line and not retried. Reloading the shelf never overwrites unsaved text. The server decides when the tape is finished (every slot has text) and the reply moves it to the Finished shelf; once finished, each line shows the song title in Modak next to the note, and the page heading becomes the album title. Clearing a note reopens the tape and hides the titles again. The finish count is a consistent DynamoDB read so the last slot always counts. Tests: `web/src/journal.test.tsx`, `tests/test_cassettes.py`.
    Not done: the idea above of filling the cassette label with the user's notes.
-6. **Polish:** accessibility, reduced motion, offline and failure states, README update.
+6. **Polish (in progress):** done so far: durable journal drafts (above); quiet failure handling: network errors become one plain "Can’t reach Charybdis" message (`reach` and `isRetryable` in `api.ts`), the place on the tape is saved by `progressSave.ts` (newest place per tape, retried after 5, 15, 30, then 60 s and when the connection returns, never shown), a failed shelf load retries when the browser comes back online, and the deck shows an offline note while `navigator.onLine` is false; deleting a tape (above). Still to do: accessibility pass (journal sheet focus, live-region noise, contrast, touch targets), reduced motion check, README.
 
 ## Open questions (defaults in bold)
 1. After a tape is finished, can it be replayed? **Yes, as a normal tape, with titles shown.**
 2. Rewind restarts the current song only; it never goes back to the previous one. **Yes.**
-3. Can a tape be deleted (and made again)? **Not in v1.**
-4. Offline: notes need a connection. **Show a failed-to-save state, keep a local draft, retry when back online.**
+3. Can a tape be deleted (and made again)? **Yes (added after v1): "Delete this cassette…" at the bottom of the Customize panel, with a confirmation that says how many notes go with it. It removes the tape and its notes; making the same album or artist again starts blank.**
+4. Offline: notes need a connection. **Show a failed-to-save state, keep a local draft, retry when back online. Done: unsaved notes are mirrored to `localStorage` (`charybdis.journal.drafts`) until the server confirms them, restored and re-sent on the next launch, and dropped if their tape no longer exists.**
 5. Artist tapes with very large catalogs. **No cap in v1; revisit if one becomes unwieldy.**

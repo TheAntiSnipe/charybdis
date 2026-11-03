@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, createCassette, fetchCassettes, saveCassetteSettings } from './api';
+import { ApiError, createCassette, deleteCassette, fetchCassettes, saveCassetteSettings } from './api';
 import { useJournal } from './journalSave';
+import { createProgressSaver } from './progressSave';
 import type { Album, Cassette, CassetteStyle, JournalEntry } from './types';
 
 export const MAX_CASSETTE_TRACKS = 2000; // mirrors api/cassettes.py
@@ -124,15 +125,18 @@ export function useTapes() {
   cassettesRef.current = cassettes;
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const journal = useJournal(setEntries, setCassettes);
-  const { overlay } = journal;
+  const { overlay, forget } = journal;
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
   // Saved places move faster than state updates; this is what a re-loaded tape resumes from.
   const progress = useRef(new Map<string, Cassette['progress']>());
+  const [saver] = useState(() => createProgressSaver());
 
   const load = useCallback(async () => {
     try {
       const data = await fetchCassettes();
+      const ids = new Set(data.cassettes.map((c) => c.id));
+      forget((id) => !ids.has(id));
       setCassettes(data.cassettes);
       setEntries(overlay(data.entries));
       setStatus('ready');
@@ -141,15 +145,31 @@ export function useTapes() {
       setStatus('error');
       setError((err as Error).message);
     }
-  }, [overlay]);
+  }, [overlay, forget]);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  // Coming back online: retry a failed load, and any place that could not be saved.
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  useEffect(() => {
+    const onOnline = () => {
+      if (statusRef.current === 'error') void load();
+      saver.retryNow();
+    };
+    window.addEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      saver.dispose();
+    };
+  }, [load, saver]);
+
   const create = useCallback(async (kind: 'album' | 'artist', sourceId: string): Promise<Cassette> => {
     try {
       const tape = await createCassette(kind, sourceId);
+      saver.revive(tape.id);
       setCassettes((current) => [...current.filter((c) => c.id !== tape.id), tape]);
       return tape;
     } catch (err) {
@@ -157,11 +177,22 @@ export function useTapes() {
       if (err instanceof ApiError && err.status === 409) await load();
       throw err;
     }
-  }, [load]);
+  }, [load, saver]);
 
   const recordProgress = useCallback((id: string, index: number, positionSec: number) => {
     progress.current.set(id, { index, positionSec });
-  }, []);
+    saver.save(id, index, positionSec);
+  }, [saver]);
+
+  /** Takes the tape and every note on it off the shelf; nothing changes here until the server has done it. */
+  const remove = useCallback(async (id: string) => {
+    await deleteCassette(id);
+    forget((cassetteId) => cassetteId === id);
+    saver.forget(id);
+    progress.current.delete(id);
+    setCassettes((current) => current.filter((c) => c.id !== id));
+    setEntries((current) => current.filter((e) => e.cassetteId !== id));
+  }, [forget, saver]);
 
   // Applies at once and rolls back if the server refuses, so editing never feels laggy.
   const update = useCallback(async (id: string, patch: { title?: string | null; style?: CassetteStyle }) => {
@@ -192,7 +223,7 @@ export function useTapes() {
   );
 
   return {
-    cassettes, entries, status, error, create, update, reload: load, recordProgress, progressOf,
+    cassettes, entries, status, error, create, update, remove, reload: load, recordProgress, progressOf,
     editEntry: journal.edit, flushEntries: journal.flush, entryStates: journal.slots, journalSync: journal.sync,
   };
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createSession, fetchLibrary, saveTapeProgress } from './api';
+import { createSession, fetchLibrary } from './api';
 import { friendlyError } from './auth';
 import LibraryView from './Library';
 import { passkeysAvailable, registerPasskey } from './passkeys';
@@ -54,10 +54,8 @@ export default function Home({ email, onSignOut }: { email: string; onSignOut: (
 
   const tapes = useTapes();
   const { recordProgress } = tapes;
-  const onTapeProgress = useCallback((cassetteId: string, index: number, positionSec: number) => {
-    recordProgress(cassetteId, index, positionSec);
-    saveTapeProgress(cassetteId, index, positionSec).catch(() => undefined);
-  }, [recordProgress]);
+  // useTapes keeps the freshest place and saves it quietly, retrying if the connection drops.
+  const onTapeProgress = recordProgress;
 
   return (
     <PlayerProvider artFor={artFor} onTapeProgress={onTapeProgress}>

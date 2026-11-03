@@ -530,6 +530,12 @@ h1, .tabs button, .detail-head h2, .np-heading, .section-title {
 .customizer .error { max-width: none; text-align: left; }
 .customizer-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .customizer-actions .action:only-child { margin-left: auto; }
+.danger-zone { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; align-items: flex-start; }
+.link.danger { color: var(--error); padding-left: 0; }
+.confirm-delete { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.confirm-delete p { margin: 0; font-size: 15px; line-height: 1.4; }
+.action.danger { background: #d6336c; }
+.offline-note { margin: 4px auto 12px; max-width: 560px; padding: 8px 12px; font-size: 14px; color: var(--text); background: rgba(255, 155, 176, 0.16); border: 1px solid rgba(255, 155, 176, 0.45); border-radius: 12px; }
 @media (prefers-reduced-motion: reduce) {
   .cassette-wrap, .deck-door { animation: none !important; }
   .reel { animation: none; }

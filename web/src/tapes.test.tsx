@@ -233,7 +233,7 @@ describe('Tape deck screen', () => {
 
   function Harness({ cassettes }: { cassettes: Cassette[] }) {
     const store = {
-      cassettes, entries: [], status: 'ready' as const, error: '', create: vi.fn(), update: vi.fn(), reload: vi.fn(),
+      cassettes, entries: [], status: 'ready' as const, error: '', create: vi.fn(), update: vi.fn(), remove: vi.fn(), reload: vi.fn(),
       recordProgress: vi.fn(), progressOf: (t: Cassette) => t.progress,
       editEntry: vi.fn(), flushEntries: vi.fn(), entryStates: {}, journalSync: 'saved' as const,
     };

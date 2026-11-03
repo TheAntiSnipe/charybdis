@@ -115,6 +115,36 @@ def entry(slot, text, cassette='album-bbbbbbbbbbbb'):
     return call('PUT /api/cassettes/{id}/entries/{slot}', {'text': text}, id=cassette, slot=str(slot))
 
 
+def remove(cassette='album-bbbbbbbbbbbb'):
+    return call('DELETE /api/cassettes/{id}', id=cassette)
+
+
+def test_delete_removes_the_tape_and_its_notes_only(lib):
+    make()
+    make('album', 'aaaaaaaaaaaa')
+    entry(0, 'mine')
+    entry(0, 'keep me', cassette='album-aaaaaaaaaaaa')
+    assert remove() == (204, None)
+    body = call('GET /api/cassettes')[1]
+    assert [c['id'] for c in body['cassettes']] == ['album-aaaaaaaaaaaa']
+    assert [(e['cassetteId'], e['text']) for e in body['entries']] == [('album-aaaaaaaaaaaa', 'keep me')]
+    assert entry(0, 'late')[0] == 404
+
+
+def test_delete_is_repeatable_and_the_tape_can_be_made_again(lib):
+    make()
+    entry(0, 'old note')
+    assert remove()[0] == 204
+    assert remove()[0] == 204
+    assert make()[0] == 201
+    assert call('GET /api/cassettes')[1]['entries'] == []
+
+
+def test_delete_validates_the_id(lib):
+    assert remove('../../etc')[0] == 400
+    assert remove('album-zzzz')[0] == 400
+
+
 def test_tape_finishes_when_every_slot_is_filled(lib):
     make()
     status, first = entry(0, '  loved the bassline  ')

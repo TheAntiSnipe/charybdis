@@ -357,6 +357,12 @@ Resources:
             ApiId: !Ref HttpApi
             Method: PUT
             Path: /api/cassettes/{id}/entries/{slot}
+        DeleteCassette:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: DELETE
+            Path: /api/cassettes/{id}
 
   # ------------------------------------------------------------------- auth
   UserPool:

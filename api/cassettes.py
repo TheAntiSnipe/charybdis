@@ -290,9 +290,20 @@ def save_settings(event):
     return _response(200, _public_cassette(updated))
 
 
+def delete_cassette(event):
+    """Removes a cassette and all of its notes. Notes go first, so a failure part-way leaves a tape that can simply be deleted again."""
+    cassette_id = _cassette_id(event)
+    with table().batch_writer() as batch:
+        for item in _query('ENTRY', f'{cassette_id}#', consistent=True):
+            batch.delete_item(Key={'pk': item['pk'], 'sk': item['sk']})
+    table().delete_item(Key={'pk': 'CASSETTE', 'sk': cassette_id})
+    return _response(204)
+
+
 ROUTES = {
     'GET /api/cassettes': list_cassettes,
     'POST /api/cassettes': create_cassette,
+    'DELETE /api/cassettes/{id}': delete_cassette,
     'PUT /api/cassettes/{id}/progress': save_progress,
     'PUT /api/cassettes/{id}/settings': save_settings,
     'PUT /api/cassettes/{id}/entries/{slot}': save_entry,
