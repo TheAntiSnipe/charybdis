@@ -1,0 +1,23 @@
+version = 0.1
+
+# Copy to samconfig.toml (gitignored) and fill in the placeholders.
+# Account-specific values must never be committed.
+
+[default.global.parameters]
+stack_name = "charybdis"
+region = "us-east-1"
+
+[default.validate.parameters]
+lint = true
+
+[default.build.parameters]
+use_container = true
+build_image = "public.ecr.aws/sam/build-python3.14:latest"
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+# CloudFrontPublicKeyBody: base64 body (no PEM header/footer) of your RSA public key.
+# DomainName / HostedZoneId: optional; leave both empty ("") for the default cloudfront.net URL.
+parameter_overrides = "CloudFrontPublicKeyBody=\"<base64-public-key-body>\" DomainName=\"<your-domain>\" HostedZoneId=\"<route53-hosted-zone-id>\""

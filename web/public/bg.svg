@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="520" viewBox="0 0 520 520" fill="none" stroke="#c4a8ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+  <g opacity="0.34">
+    <!-- four-point sparkles -->
+    <path d="M70 60Q70 76 54 76Q70 76 70 92Q70 76 86 76Q70 76 70 60Z" fill="#c4a8ff" stroke="none"/>
+    <path d="M400 210Q400 222 388 222Q400 222 400 234Q400 222 412 222Q400 222 400 210Z" fill="#c4a8ff" stroke="none"/>
+    <path d="M250 430Q250 450 230 450Q250 450 250 470Q250 450 270 450Q250 450 250 430Z" fill="#c4a8ff" stroke="none"/>
+    <!-- outlined stars -->
+    <path d="M300 70l9 19 21 3-15 15 4 21-19-10-19 10 4-21-15-15 21-3z"/>
+    <path d="M110 330l7 14 16 2-12 11 3 16-14-8-14 8 3-16-12-11 16-2z"/>
+    <!-- plus marks -->
+    <path d="M455 70v26M442 83h26"/>
+    <path d="M40 220v20M30 230h20"/>
+    <path d="M360 400v22M349 411h22"/>
+    <!-- rings -->
+    <circle cx="190" cy="140" r="9"/>
+    <circle cx="470" cy="330" r="7"/>
+    <circle cx="20" cy="440" r="8"/>
+    <!-- tag squiggles and arrows -->
+    <path d="M150 220c14-18 28 10 42-8s26 8 40-10"/>
+    <path d="M330 300l24-14-6 26 26-6"/>
+    <path d="M60 130l18 18-10 10 22 22"/>
+    <path d="M420 460c12-14 24 6 36-8"/>
+    <!-- drips -->
+    <path d="M215 30v34M215 64a4 4 0 1 0 .1 0"/>
+    <path d="M490 170v26M490 196a3.4 3.4 0 1 0 .1 0"/>
+    <path d="M140 470v22M140 492a3.4 3.4 0 1 0 .1 0"/>
+  </g>
+</svg>

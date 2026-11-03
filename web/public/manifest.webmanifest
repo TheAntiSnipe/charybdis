@@ -1,0 +1,8 @@
+{
+  "name": "Charybdis",
+  "short_name": "Charybdis",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a0a3d",
+  "theme_color": "#1a0a3d"
+}
