@@ -34,6 +34,8 @@ scratch/
 .claude/
 CLAUDE.md
 node_modules/
+.venv/
+.pytest_cache/
 .terraform/
 .DS_Store
 Thumbs.db
