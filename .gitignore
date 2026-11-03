@@ -1,0 +1,41 @@
+# Secrets / credentials — never commit
+.aws/
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+samconfig.toml
+*credentials*
+*.tfvars
+*.tfstate
+*.tfstate.*
+
+# Audio and media — lives in S3 / on the PC, never in git
+*.m4a
+*.mp3
+*.flac
+*.wav
+*.aac
+
+# Generated artifacts (contain presigned URLs / signatures)
+*.presigned.*
+test.html
+dist/
+build/
+.aws-sam/
+tmp/
+__pycache__/
+*.pyc
+scratch/
+
+# Local tool state
+.wolf/
+.claude/
+CLAUDE.md
+node_modules/
+.terraform/
+.DS_Store
+Thumbs.db
+specdoc.md
+logo_concept.webp
