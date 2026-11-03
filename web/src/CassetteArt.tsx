@@ -177,12 +177,12 @@ function GeneratedArt({ uid, seed }: { uid: string; seed: string }) {
   );
 }
 
-export default function CassetteArt({ look, playing }: { look: CassetteLook; playing: boolean }) {
+export default function CassetteArt({ look, playing, rewinding = false }: { look: CassetteLook; playing: boolean; rewinding?: boolean }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const [artFailed, setArtFailed] = useState(false);
   const style = { '--shell': look.style === 'executive' ? '#e4ebf0' : look.shell, '--scale': labelScale(look.title) } as CSSProperties;
   const covers = look.style === 'cover' && !artFailed ? look.covers : [];
-  const classes = `cassette cassette-${look.style} ${playing ? 'playing' : ''}`;
+  const classes = `cassette cassette-${look.style} ${playing ? 'playing' : ''} ${rewinding ? 'rewinding' : ''}`;
   let body: ReactNode;
 
   if (look.style === 'clear') {

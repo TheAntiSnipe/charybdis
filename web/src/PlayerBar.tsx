@@ -23,7 +23,7 @@ export default function PlayerBar({ artFor, hideTapeBar = false }: { artFor: (t:
             <span className="track-sub">{tapeEnded ? 'End of tape' : `Song ${tape.slot + 1} of ${tape.total}`}</span>
           </span>
           <div className="controls">
-            <button aria-label="Rewind to the start of this song" onClick={rewind}><PrevIcon /></button>
+            <button aria-label="Rewind" title="Rewind: restarts this song; press again to go back a song" onClick={() => rewind()}><PrevIcon /></button>
             <button aria-label={playing ? 'Pause' : 'Play'} className="primary" onClick={toggle}>
               {playing ? <PauseIcon /> : <PlayIcon />}
             </button>

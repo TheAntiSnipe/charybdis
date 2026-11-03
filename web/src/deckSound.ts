@@ -81,3 +81,52 @@ export function playKey(): void {
   thump(ctx, at, 180, 80, 0.05, 0.35);
   closeAfter(ctx, 0.12);
 }
+
+export type RewindKind = 'restart' | 'previous';
+
+/** How long the rewind whirr lasts, so the reels can spin backwards for exactly as long. */
+export const REWIND_SOUND_S: Record<RewindKind, number> = { restart: 0.5, previous: 0.85 };
+
+/** The key, then spools whirring backwards (rising whine, ratcheting flutter, hiss) and braking with a clunk. */
+export function playRewind(kind: RewindKind = 'restart'): void {
+  const ctx = newContext();
+  if (!ctx) return;
+  const at = ctx.currentTime;
+  const length = REWIND_SOUND_S[kind];
+
+  click(ctx, at, 1800, 0.025, 0.5);
+  thump(ctx, at, 180, 80, 0.05, 0.35);
+
+  const start = at + 0.04;
+  const osc = ctx.createOscillator();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(170, start);
+  osc.frequency.exponentialRampToValueAtTime(950, start + length * 0.55);
+  osc.frequency.exponentialRampToValueAtTime(230, start + length);
+  filter.type = 'bandpass';
+  filter.frequency.value = 1100;
+  filter.Q.value = 0.8;
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(0.15, start + 0.07);
+  gain.gain.exponentialRampToValueAtTime(0.001, start + length);
+  osc.connect(filter).connect(gain).connect(ctx.destination);
+
+  // The flutter: the volume ratchets a few dozen times a second, like spokes passing a pawl.
+  const lfo = ctx.createOscillator();
+  const depth = ctx.createGain();
+  lfo.frequency.value = kind === 'previous' ? 24 : 30;
+  depth.gain.value = 0.06;
+  lfo.connect(depth).connect(gain.gain);
+
+  osc.start(start);
+  osc.stop(start + length + 0.02);
+  lfo.start(start);
+  lfo.stop(start + length + 0.02);
+
+  click(ctx, start, 3200, length, 0.1);
+  click(ctx, start + length, 1500, 0.03, 0.4);
+  thump(ctx, start + length, 160, 70, 0.06, 0.4);
+  closeAfter(ctx, length + 0.3);
+}

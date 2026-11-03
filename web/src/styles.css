@@ -468,6 +468,7 @@ h1, .tabs button, .detail-head h2, .np-heading, .section-title {
 .cassette-window { pointer-events: none; }
 .reel { transform-box: fill-box; transform-origin: center; animation: reel-spin 1.8s linear infinite; animation-play-state: paused; }
 .cassette.playing .reel { animation-play-state: running; }
+.cassette.rewinding .reel { animation-direction: reverse; animation-duration: 0.28s; animation-play-state: running; }
 @keyframes reel-spin { to { transform: rotate(360deg); } }
 
 /* smoked-glass door over the bay: lifts as a cassette goes in or out, then latches */
@@ -538,7 +539,7 @@ h1, .tabs button, .detail-head h2, .np-heading, .section-title {
 .offline-note { margin: 4px auto 12px; max-width: 560px; padding: 8px 12px; font-size: 14px; color: var(--text); background: rgba(255, 155, 176, 0.16); border: 1px solid rgba(255, 155, 176, 0.45); border-radius: 12px; }
 @media (prefers-reduced-motion: reduce) {
   .cassette-wrap, .deck-door { animation: none !important; }
-  .reel { animation: none; }
+  .reel, .cassette.rewinding .reel { animation: none; }
   .journal-sheet { animation: none; }
 }
 

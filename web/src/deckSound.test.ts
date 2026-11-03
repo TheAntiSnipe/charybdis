@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { playEject, playInsert, playKey } from './deckSound';
+import { playEject, playInsert, playKey, playRewind, REWIND_SOUND_S } from './deckSound';
 
 class FakeParam {
   setValueAtTime = vi.fn();
@@ -59,9 +59,22 @@ describe('deck sounds', () => {
     expect(contexts).toHaveLength(1);
   });
 
+  it('plays a rewind whirr, longer when it goes back a song', () => {
+    playRewind('restart');
+    playRewind('previous');
+    expect(contexts).toHaveLength(2);
+    expect(contexts[0].oscillators).toBeGreaterThanOrEqual(3); // key thump, whine and flutter
+    expect(REWIND_SOUND_S.previous).toBeGreaterThan(REWIND_SOUND_S.restart);
+    vi.advanceTimersByTime(REWIND_SOUND_S.restart * 1000);
+    expect(contexts[0].close).not.toHaveBeenCalled(); // still sounding
+    vi.advanceTimersByTime(1000);
+    expect(contexts[0].close).toHaveBeenCalledTimes(1);
+    expect(contexts[1].close).toHaveBeenCalledTimes(1);
+  });
+
   it('does nothing, and does not throw, where Web Audio is unavailable', () => {
     vi.stubGlobal('AudioContext', undefined);
-    expect(() => { playKey(); playInsert(); playEject(); }).not.toThrow();
+    expect(() => { playKey(); playInsert(); playEject(); playRewind('previous'); }).not.toThrow();
   });
 
   it('survives a context that refuses to start', () => {

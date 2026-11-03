@@ -200,13 +200,78 @@ describe('blind tape playback', () => {
     expect(onProgress).toHaveBeenLastCalledWith('album-aaaaaaaaaaaa', 2, 0);
   });
 
-  it('rewinds to the start of the current song only', () => {
+  it('rewinds to the start of a song that is well under way', () => {
     const { result, audio } = setup();
     act(() => result.current.loadTape(tapeOf({ index: 1 })));
     audio.currentTime = 80;
-    act(() => result.current.rewind());
+    let did: ReturnType<typeof result.current.rewind> = null;
+    act(() => { did = result.current.rewind(); });
+    expect(did).toBe('restart');
     expect(audio.currentTime).toBe(0);
     expect(audio.src).toBe('/music/t2.m4a');
+    expect(result.current.tape?.slot).toBe(1);
+  });
+
+  it('goes back a song when rewound near the start, and keeps going on repeated presses', () => {
+    const { result, audio } = setup();
+    act(() => result.current.loadTape(tapeOf({ index: 2 })));
+    act(() => result.current.toggle());
+    audio.currentTime = 2.5;
+    let did: ReturnType<typeof result.current.rewind> = null;
+    act(() => { did = result.current.rewind(); });
+    expect(did).toBe('previous');
+    expect(audio.src).toBe('/music/t2.m4a');
+    expect(result.current.tape?.slot).toBe(1);
+    expect(audio.paused).toBe(false); // it was playing, so it carries on
+    expect(onProgress).toHaveBeenLastCalledWith('album-aaaaaaaaaaaa', 1, 0);
+    audio.currentTime = 0;
+    act(() => { did = result.current.rewind(); });
+    expect(did).toBe('previous');
+    expect(result.current.tape?.slot).toBe(0);
+    expect(audio.src).toBe('/music/t1.m4a');
+    expect(result.current.tapeProgress).toBe(0);
+  });
+
+  it('goes back to the previous song paused if the tape was paused', () => {
+    const { result, audio } = setup();
+    act(() => result.current.loadTape(tapeOf({ index: 1 })));
+    audio.currentTime = 0;
+    act(() => { result.current.rewind(); });
+    expect(result.current.tape?.slot).toBe(0);
+    expect(audio.paused).toBe(true);
+  });
+
+  it('stops at the first song: rewinding there only restarts it', () => {
+    const { result, audio } = setup();
+    act(() => result.current.loadTape(tapeOf({ index: 0 })));
+    audio.currentTime = 1;
+    let did: ReturnType<typeof result.current.rewind> = null;
+    act(() => { did = result.current.rewind(); });
+    expect(did).toBe('restart');
+    expect(result.current.tape?.slot).toBe(0);
+    expect(audio.currentTime).toBe(0);
+  });
+
+  it('does nothing without a tape loaded', () => {
+    const { result } = setup();
+    let did: ReturnType<typeof result.current.rewind> = 'restart';
+    act(() => { did = result.current.rewind(); });
+    expect(did).toBeNull();
+  });
+
+  it('rewinding after the end of the tape restarts the last song and clears the end state', () => {
+    const { result, audio } = setup();
+    act(() => result.current.loadTape(tapeOf({ index: 2 })));
+    act(() => result.current.toggle());
+    audio.currentTime = 180;
+    audio.ended = true;
+    act(() => audio.dispatchEvent(new Event('ended')));
+    expect(result.current.tapeEnded).toBe(true);
+    audio.ended = false;
+    act(() => { result.current.rewind(); });
+    expect(result.current.tapeEnded).toBe(false);
+    expect(result.current.tape?.slot).toBe(2);
+    expect(audio.currentTime).toBe(0);
   });
 
   it('saves progress at most every 15 seconds, and on pause', () => {
@@ -283,7 +348,7 @@ describe('blind tape playback', () => {
     expect(result.current.tapeProgress).toBeCloseTo(210 / 540, 4);
     audio.currentTime = 100;
     act(() => audio.dispatchEvent(new Event('timeupdate')));
-    act(() => result.current.rewind());
+    act(() => { result.current.rewind(); });
     expect(result.current.tapeProgress).toBeCloseTo(180 / 540, 4);
   });
 

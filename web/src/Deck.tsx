@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import CassetteArt, { type CassetteLook } from './CassetteArt';
-import { playEject, playKey } from './deckSound';
+import { playEject, playKey, playRewind, REWIND_SOUND_S } from './deckSound';
 import { EjectIcon, PauseIcon, PlayIcon, PrevIcon } from './icons';
 import { tapeTitle, usePlayer } from './player';
 import { displayTitle, spineLook, styleOf, tapeLengthLabel } from './tapes';
@@ -29,6 +29,8 @@ export default function Deck({ cassettes, coversFor }: { cassettes: Cassette[]; 
   const [phase, setPhase] = useState<Phase>(tape ? 'loaded' : 'idle');
   const shownId = useRef<string | undefined>(shown?.id);
   const timer = useRef<number | undefined>(undefined);
+  const rewindTimer = useRef<number | undefined>(undefined);
+  const [rewinding, setRewinding] = useState(false);
   const lastProgress = useRef(0);
   if (tape) lastProgress.current = tapeProgress;
 
@@ -53,7 +55,20 @@ export default function Deck({ cassettes, coversFor }: { cassettes: Cassette[]; 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tape?.id]);
 
-  useEffect(() => () => window.clearTimeout(timer.current), []);
+  useEffect(() => () => {
+    window.clearTimeout(timer.current);
+    window.clearTimeout(rewindTimer.current);
+  }, []);
+
+  // The reels run backwards for as long as the rewind sound lasts.
+  function onRewind() {
+    const kind = rewind() ?? 'restart';
+    playRewind(kind);
+    window.clearTimeout(rewindTimer.current);
+    if (prefersReducedMotion()) return;
+    setRewinding(true);
+    rewindTimer.current = window.setTimeout(() => setRewinding(false), REWIND_SOUND_S[kind] * 1000);
+  }
 
   // Renaming the tape in the customize panel should change the lock screen too.
   const match = shown ? cassettes.find((c) => c.id === shown.id) : undefined;
@@ -104,7 +119,7 @@ export default function Deck({ cassettes, coversFor }: { cassettes: Cassette[]; 
       <div className={`deck-bay ${phase}`}>
         {shown && look ? (
           <div key={shown.id} className={`cassette-wrap ${phase}`}>
-            <CassetteArt look={look} playing={playing && phase === 'loaded'} />
+            <CassetteArt look={look} playing={playing && phase === 'loaded'} rewinding={rewinding} />
           </div>
         ) : (
           <p className="deck-empty">Insert a cassette</p>
@@ -118,7 +133,13 @@ export default function Deck({ cassettes, coversFor }: { cassettes: Cassette[]; 
           <span className="deck-lcd" aria-hidden>{readout}</span>
         </div>
         <div className="deck-keys">
-          <button className="deck-key" aria-label="Rewind to the start of this song" disabled={!tape} onClick={() => { playKey(); rewind(); }}>
+          <button
+            className="deck-key"
+            aria-label="Rewind"
+            title="Rewind: restarts this song; press again to go back a song"
+            disabled={!tape}
+            onClick={onRewind}
+          >
             <PrevIcon />
           </button>
           <button className="deck-key play" aria-label={playing ? 'Pause' : 'Play'} disabled={!tape} onClick={() => { playKey(); toggle(); }}>

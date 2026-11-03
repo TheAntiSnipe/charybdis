@@ -40,12 +40,14 @@ interface PlayerApi {
   seek: (seconds: number) => void;
   loadTape: (tape: TapeLoad) => void;
   relabelTape: (id: string, label: string) => void;
-  rewind: () => void;
+  /** Restarts the song, or from near its start goes back one. Returns which it did (null with no tape loaded). */
+  rewind: () => 'restart' | 'previous' | null;
   eject: () => void;
 }
 
 const SHUFFLE_KEY = 'charybdis.shuffle';
 const TAPE_SAVE_EVERY_MS = 15_000;
+export const REWIND_RESTART_AFTER_S = 3; // rewinding further into a song than this restarts it; nearer the start goes back a song
 const TAPE_ONLY_ACTIONS = ['previoustrack', 'nexttrack', 'seekto', 'seekbackward', 'seekforward'] as const;
 
 export function tapeTitle(kind: 'album' | 'artist', label: string): string {
@@ -192,12 +194,23 @@ export function PlayerProvider({
     setTape((info) => (info && info.id === id ? { ...info, label } : info));
   }, []);
 
-  const rewind = useCallback(() => {
-    if (!tapeRef.current) return;
-    if (audio.ended) setTapeEnded(false);
+  // Like a CD player's skip-back: the first press restarts the song, a press near the start goes to the one before.
+  // This is the only way back, and it never goes forward.
+  const rewind = useCallback((): 'restart' | 'previous' | null => {
+    const t = tapeRef.current;
+    if (!t) return null;
+    const at = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    const wasPlaying = !audio.paused && !audio.ended;
+    setTapeEnded(false);
+    if (t.index > 0 && at <= REWIND_RESTART_AFTER_S) {
+      startTape(t.index - 1, 0, wasPlaying);
+      saveTapeNow(0);
+      return 'previous';
+    }
     audio.currentTime = 0;
     publishProgress(0);
-  }, [audio, publishProgress]);
+    return 'restart';
+  }, [audio, publishProgress, startTape, saveTapeNow]);
 
   // play() must be called synchronously inside the user's tap or iOS Safari blocks it.
   const start = useCallback((index: number) => {

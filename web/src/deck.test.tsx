@@ -14,6 +14,7 @@ vi.mock('./deckSound', async (importOriginal) => ({
   playInsert: vi.fn(),
   playEject: vi.fn(),
   playKey: vi.fn(),
+  playRewind: vi.fn(),
 }));
 
 class FakeAudio extends EventTarget {
@@ -123,7 +124,7 @@ describe('Deck', () => {
     render(<Harness cassettes={[tape()]} />);
     expect(screen.getByText('Insert a cassette')).toBeTruthy();
     expect(lcd()).toBe('--');
-    for (const name of ['Play', 'Rewind to the start of this song', 'Eject tape']) {
+    for (const name of ['Play', 'Rewind', 'Eject tape']) {
       expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
     }
   });
@@ -155,13 +156,55 @@ describe('Deck', () => {
     expect(document.querySelector('.cassette.playing')).toBeNull();
   });
 
-  it('rewind restarts only the current song', () => {
-    render(<Harness cassettes={[tape()]} />);
-    loadAndSettle();
-    FakeAudio.last.currentTime = 77;
-    fireEvent.click(screen.getByRole('button', { name: 'Rewind to the start of this song' }));
-    expect(FakeAudio.last.currentTime).toBe(0);
-    expect(lcd()).toBe('02');
+  describe('rewind', () => {
+    const press = () => fireEvent.click(screen.getByRole('button', { name: 'Rewind' }));
+
+    it('restarts a song that is well under way, with the short whirr', () => {
+      render(<Harness cassettes={[tape()]} />);
+      loadAndSettle();
+      FakeAudio.last.currentTime = 77;
+      press();
+      expect(FakeAudio.last.currentTime).toBe(0);
+      expect(lcd()).toBe('02');
+      expect(sound.playRewind).toHaveBeenLastCalledWith('restart');
+    });
+
+    it('keeps going back a song at a time on repeated presses, then stops at the first', () => {
+      render(<Harness cassettes={[tape()]} />);
+      loadAndSettle();
+      FakeAudio.last.currentTime = 77;
+      press(); // restart song 2
+      expect(lcd()).toBe('02');
+      press(); // now near the start: back to song 1
+      expect(lcd()).toBe('01');
+      expect(FakeAudio.last.src).toContain('/music/t1.m4a');
+      expect(sound.playRewind).toHaveBeenLastCalledWith('previous');
+      FakeAudio.last.currentTime = 1;
+      press(); // nowhere earlier to go: just restarts
+      expect(lcd()).toBe('01');
+      expect(FakeAudio.last.currentTime).toBe(0);
+      expect(sound.playRewind).toHaveBeenLastCalledWith('restart');
+    });
+
+    it('spins the reels backwards for as long as the whirr lasts', () => {
+      render(<Harness cassettes={[tape()]} />);
+      loadAndSettle();
+      expect(document.querySelector('.cassette.rewinding')).toBeNull();
+      FakeAudio.last.currentTime = 77;
+      press();
+      expect(document.querySelector('.cassette.rewinding')).not.toBeNull();
+      advance(sound.REWIND_SOUND_S.restart * 1000 + 1);
+      expect(document.querySelector('.cassette.rewinding')).toBeNull();
+    });
+
+    it('does not animate for people who prefer reduced motion, but still makes the sound', () => {
+      motion(true);
+      render(<Harness cassettes={[tape()]} />);
+      loadAndSettle();
+      press();
+      expect(document.querySelector('.cassette.rewinding')).toBeNull();
+      expect(sound.playRewind).toHaveBeenCalled();
+    });
   });
 
   it('ejects: sound, animation, then an empty deck, with the tape put away', () => {
