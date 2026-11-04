@@ -483,7 +483,7 @@ describe('Journal screen', () => {
       fireEvent.click(screen.getByRole('button', { name: /Delete this cassette/ }));
       fireEvent.click(within(screen.getByRole('group', { name: 'Confirm delete' })).getByRole('button', { name: 'Delete' }));
       await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Can’t reach Charybdis'));
-      expect((screen.getByRole('button', { name: 'Eject tape' }) as HTMLButtonElement).disabled).toBe(false);
+      await waitFor(() => expect((screen.getByRole('button', { name: 'Eject tape' }) as HTMLButtonElement).disabled).toBe(false), { timeout: 3000 }); // once the tape has started up
       expect(screen.getByRole('button', { name: /Delete this cassette/ })).toBeTruthy();
     });
   });

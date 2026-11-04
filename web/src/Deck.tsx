@@ -23,7 +23,7 @@ export function prefersReducedMotion(): boolean {
 }
 
 export default function Deck({ cassettes, coversFor }: { cassettes: Cassette[]; coversFor: (tape: Cassette) => string[] }) {
-  const { tape, playing, tapeEnded, tapeProgress, toggle, rewind, eject, relabelTape } = usePlayer();
+  const { tape, playing, tapeEnded, tapeProgress, tapeStarting, toggle, rewind, eject, relabelTape } = usePlayer();
 
   const [shown, setShown] = useState<Shown | null>(() => (tape ? { id: tape.id, title: tape.label, totalSec: tape.totalSec } : null));
   const [phase, setPhase] = useState<Phase>(tape ? 'loaded' : 'idle');
@@ -137,15 +137,15 @@ export default function Deck({ cassettes, coversFor }: { cassettes: Cassette[]; 
             className="deck-key"
             aria-label="Rewind"
             title="Rewind: restarts this song; press again to go back a song"
-            disabled={!tape}
+            disabled={!tape || tapeStarting}
             onClick={onRewind}
           >
             <PrevIcon />
           </button>
-          <button className="deck-key play" aria-label={playing ? 'Pause' : 'Play'} disabled={!tape} onClick={() => { playKey(); toggle(); }}>
+          <button className="deck-key play" aria-label={playing ? 'Pause' : 'Play'} disabled={!tape || tapeStarting} onClick={() => { playKey(); toggle(); }}>
             {playing ? <PauseIcon /> : <PlayIcon />}
           </button>
-          <button className="deck-key" aria-label="Eject tape" disabled={!tape} onClick={onEject}>
+          <button className="deck-key" aria-label="Eject tape" disabled={!tape || tapeStarting} onClick={onEject}>
             <EjectIcon />
           </button>
         </div>

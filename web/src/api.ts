@@ -117,3 +117,28 @@ export async function deleteCassette(cassetteId: string): Promise<void> {
   const detail = await res.json().then((b: { error?: string }) => b.error).catch(() => undefined);
   throw new ApiError(detail ?? `Could not delete the cassette (${res.status})`, res.status);
 }
+
+export interface HeroRecord {
+  albumId: string;
+  trackId: string;
+  phrase?: string;
+  source?: string;
+}
+
+export async function fetchHeroes(): Promise<HeroRecord[]> {
+  const res = await reach('/api/heroes', { headers: await authHeader() });
+  if (!res.ok) throw new ApiError(`Could not load hero songs (${res.status})`, res.status);
+  return (await res.json()).heroes;
+}
+
+/** One hero per album: a new pick replaces the old one, `null` takes the sticker off. The review wording rides along. */
+export async function saveHero(albumId: string, trackId: string | null, review?: { phrase: string; source: string }): Promise<void> {
+  const res = await reach(`/api/heroes/${albumId}`, {
+    method: 'PUT',
+    headers: { ...(await authHeader()), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trackId, ...review }),
+  });
+  if (res.ok) return;
+  const detail = await res.json().then((b: { error?: string }) => b.error).catch(() => undefined);
+  throw new ApiError(detail ?? `Could not save the hero song (${res.status})`, res.status);
+}

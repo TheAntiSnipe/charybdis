@@ -7,7 +7,7 @@ import SeekRow from './SeekRow';
 import type { Track } from './types';
 
 export default function PlayerBar({ artFor, hideTapeBar = false }: { artFor: (t: Track) => string | null; hideTapeBar?: boolean }) {
-  const { current, playing, shuffle, tape, tapeEnded, toggleShuffle, toggle, next, prev, rewind, eject } = usePlayer();
+  const { current, playing, shuffle, tape, tapeEnded, tapeStarting, toggleShuffle, toggle, next, prev, rewind, eject } = usePlayer();
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
 
@@ -23,11 +23,11 @@ export default function PlayerBar({ artFor, hideTapeBar = false }: { artFor: (t:
             <span className="track-sub">{tapeEnded ? 'End of tape' : `Song ${tape.slot + 1} of ${tape.total}`}</span>
           </span>
           <div className="controls">
-            <button aria-label="Rewind" title="Rewind: restarts this song; press again to go back a song" onClick={() => rewind()}><PrevIcon /></button>
-            <button aria-label={playing ? 'Pause' : 'Play'} className="primary" onClick={toggle}>
+            <button aria-label="Rewind" title="Rewind: restarts this song; press again to go back a song" disabled={tapeStarting} onClick={() => rewind()}><PrevIcon /></button>
+            <button aria-label={playing ? 'Pause' : 'Play'} className="primary" disabled={tapeStarting} onClick={toggle}>
               {playing ? <PauseIcon /> : <PlayIcon />}
             </button>
-            <button aria-label="Eject tape" onClick={eject}><EjectIcon /></button>
+            <button aria-label="Eject tape" disabled={tapeStarting} onClick={eject}><EjectIcon /></button>
           </div>
         </div>
       </footer>

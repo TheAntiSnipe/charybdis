@@ -9,6 +9,11 @@
   --ink: #240657;
   --line: rgba(196, 168, 255, 0.18);
   --error: #ff9bb0;
+  /* Hairline scratch tiles for the ageing of the deck, cassettes and spines: light on dark plastic, dark on pale paper and keys. */
+  --scratch-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='220' fill='none' stroke='white' stroke-linecap='round'%3E%3Cpath d='M27 118l6 1M184 88l5 2M24 17l9 0M232 65l8 3M189 127l12 2M11 102l6 1M274 63l-7 5M119 124l6 0M202 17l7 -2M83 78l11 -4M301 116l10 -5M107 51l10 3M220 207l3 -1M208 174l1 12M299 158l13 -1M307 142l8 -3M288 79l20 -7M58 104l18 5' stroke-opacity='.16' stroke-width='.6'/%3E%3Cpath d='M16 96l7 0M262 30l4 0M94 35l12 4M60 127l4 1M102 128l1 5M222 56l7 2M240 36l13 -1M243 125l8 1M152 145l-7 1M314 178l-2 3M244 31l4 -2M29 99l5 2M303 36l7 2M155 129l5 -1M197 147l-1 13M277 173l-3 2M110 15l4 -1M117 9l3 -1M314 103l6 2M111 60l7 -3M169 211l4 -2M118 39l8 9M255 177l-10 5M115 10l10 0M302 81l-7 0M68 136l5 -1M248 163l-4 1M108 174l8 2M286 175l4 -1M209 78l-4 0M276 179l6 27M79 128l19 -4M135 199l24 9M10 97l27 1M166 122l32 -5M82 63l34 2' stroke-opacity='.08' stroke-width='.5'/%3E%3C/svg%3E");
+  --scratch-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='220' fill='none' stroke='black' stroke-linecap='round'%3E%3Cpath d='M241 197l11 1M179 204l8 9M49 191l-2 4M229 8l6 -1M247 61l4 -2M27 203l1 3M78 27l6 0M233 121l3 -1M264 154l5 9M92 55l-6 10M123 105l6 -3M238 143l5 0M257 34l12 2M37 181l3 0M83 20l9 2M50 58l9 -3M41 193l27 -1M48 115l38 3' stroke-opacity='.18' stroke-width='.6'/%3E%3Cpath d='M164 151l7 0M298 152l8 0M142 19l11 -4M249 194l5 1M128 107l12 5M139 113l11 6M107 136l8 -3M250 210l7 3M260 59l4 2M223 23l-1 4M271 18l9 2M177 200l12 -2M101 69l4 -1M60 78l11 0M37 178l5 2M127 111l7 2M21 32l9 -1M55 22l3 3M143 60l6 -2M80 209l-2 12M6 60l8 0M11 68l4 -2M106 213l3 10M18 181l-2 4M255 179l8 2M220 53l-5 7M216 108l9 1M161 117l-2 2M235 211l5 3M217 167l8 0M8 17l33 2M215 66l-12 17M9 101l-19 4M88 48l6 35M163 192l37 11M156 9l30 11' stroke-opacity='.09' stroke-width='.5'/%3E%3C/svg%3E");
+  /* Micro-scratches for the silver hero label: short, fine, mostly in the same direction, dark and a few bright. */
+  --scratch-micro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='110' fill='none' stroke-linecap='round'%3E%3Cpath d='M8 20l14 -3M31 64l9 -2M52 12l17 -4M96 31l12 -2M127 70l16 -4M14 93l11 -1M71 52l8 -3M110 100l19 -5M147 18l9 -2M60 85l13 -3M118 44l7 -1M36 38l10 -2M88 78l6 -1M141 96l12 -3M3 56l8 -1' stroke='%23202636' stroke-opacity='.22' stroke-width='.6'/%3E%3Cpath d='M22 31l11 -2M64 28l8 -1M100 62l14 -3M5 80l9 -2M80 8l12 -2M132 36l10 -2M47 104l15 -3M120 12l6 0M150 60l8 -2M28 75l7 -1' stroke='white' stroke-opacity='.55' stroke-width='.6'/%3E%3C/svg%3E");
   /* One definition for the page and the Now Playing sheet, so the artwork can be swapped in one place. */
   --backdrop:
     url('/bg.svg') 0 0 / 520px 520px,
@@ -387,17 +392,25 @@ h1, .tabs button, .detail-head h2, .np-heading, .section-title {
 .shelf > li { padding: 0 3px; border-bottom: 14px solid #6b4020; box-shadow: 0 5px 0 #2e1a0c; }
 
 .spine {
-  --paper: #fff7df;
+  --paper: #f3e6bd;
   position: relative; display: flex; align-items: center; justify-content: center;
   width: var(--w); height: var(--h); padding: 0;
-  background: var(--shell); color: #1d1d2b;
+  background: var(--scratch-light) 9px 31px / 250px 172px, var(--shell); color: #1d1d2b;
   border: 3px solid var(--outline); border-bottom: 0; border-radius: 7px 7px 0 0;
-  box-shadow: 3px 0 0 var(--ink);
+  box-shadow: 3px 0 0 var(--ink), inset 0 -14px 14px -10px rgba(0, 0, 0, 0.3);
   transform: rotate(var(--tilt)); transform-origin: bottom center;
   transition: transform 0.15s, opacity 0.15s;
 }
 .spine::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 13px; background: rgba(0, 0, 0, 0.28); border-radius: 4px 4px 0 0; }
-.spine-paper { width: 88%; height: 80%; margin-top: 14px; background: var(--paper); border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+/* the paper has browned at the edges and picked up scuffs and creases */
+.spine-paper {
+  width: 88%; height: 80%; margin-top: 14px; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+  background:
+    var(--scratch-dark) 40px 12px / 230px 158px,
+    linear-gradient(100deg, rgba(0, 0, 0, 0) 46%, rgba(120, 80, 20, 0.07) 50%, rgba(0, 0, 0, 0) 54%),
+    radial-gradient(ellipse 80% 70% at 50% 45%, rgba(0, 0, 0, 0) 55%, rgba(140, 95, 25, 0.22)),
+    var(--paper);
+}
 /* the "sharpie": vertical marker lettering; long names wrap onto two lines (three at the smallest sizes), centred along the spine */
 .spine-title {
   writing-mode: vertical-rl; font-family: 'Permanent Marker', 'Segoe Print', cursive; font-size: var(--fs, 17px); line-height: 1.05;
@@ -430,7 +443,12 @@ h1, .tabs button, .detail-head h2, .np-heading, .section-title {
 
 .deck {
   max-width: 560px; margin: 14px auto 22px; padding: 14px 14px 12px;
-  background: linear-gradient(180deg, #4a4466, #2a2540 55%, #221d37);
+  background:
+    var(--scratch-light) 23px 7px / 290px 200px,
+    var(--scratch-light) 140px 90px / 450px 310px,
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0)),
+    radial-gradient(ellipse 50% 35% at 0% 100%, rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0)),
+    linear-gradient(180deg, #4a4466, #2a2540 55%, #221d37);
   border: 3px solid var(--outline); border-radius: 22px; box-shadow: 4px 6px 0 var(--ink), inset 0 2px 0 rgba(255, 255, 255, 0.14);
 }
 .deck-bay {
@@ -466,15 +484,23 @@ h1, .tabs button, .detail-head h2, .np-heading, .section-title {
 }
 .cassette-clear { filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.5)); }
 .cassette-window { pointer-events: none; }
+.cassette > .cassette-wear { pointer-events: none; }
 .reel { transform-box: fill-box; transform-origin: center; animation: reel-spin 1.8s linear infinite; animation-play-state: paused; }
 .cassette.playing .reel { animation-play-state: running; }
 .cassette.rewinding .reel { animation-direction: reverse; animation-duration: 0.28s; animation-play-state: running; }
 @keyframes reel-spin { to { transform: rotate(360deg); } }
 
-/* smoked-glass door over the bay: lifts as a cassette goes in or out, then latches */
+/* smoked-glass door over the bay: lifts as a cassette goes in or out, then latches. Decades of sun have yellowed the acrylic
+   (most at the thick edges) and it has gathered scratches and a few fingerprints. */
 .deck-door {
   position: absolute; inset: 0; pointer-events: none; transform-origin: top center;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.02) 42%, rgba(255, 255, 255, 0.07));
+  background:
+    var(--scratch-light) 31px 18px / 270px 186px,
+    var(--scratch-light) 120px 60px / 410px 282px,
+    radial-gradient(ellipse 26% 20% at 71% 63%, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0)),
+    radial-gradient(ellipse 18% 14% at 29% 36%, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
+    radial-gradient(ellipse 85% 80% at 50% 45%, rgba(214, 160, 40, 0.08) 35%, rgba(190, 125, 20, 0.22)),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.02) 42%, rgba(255, 255, 255, 0.07));
   border-radius: 11px;
 }
 .deck-bay.inserting .deck-door { animation: door-close 0.9s ease-in-out both; }
@@ -500,16 +526,30 @@ h1, .tabs button, .detail-head h2, .np-heading, .section-title {
 .deck-led { width: 11px; height: 11px; border-radius: 50%; background: #4a1620; box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5); transition: background 0.15s, box-shadow 0.15s; }
 .deck-led.on { background: #ff3b4a; box-shadow: 0 0 9px 2px rgba(255, 59, 74, 0.7); }
 .deck-lcd {
-  min-width: 54px; padding: 4px 9px; text-align: center; border-radius: 6px; background: #10281a; border: 2px solid #07150d;
+  min-width: 54px; padding: 4px 9px; text-align: center; border-radius: 6px; border: 2px solid #07150d;
+  background: var(--scratch-light) 7px 3px / 130px 90px, linear-gradient(165deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 40%), #10281a;
   font: 700 24px/1 'Courier New', ui-monospace, monospace; letter-spacing: 0.08em; color: #b8ff9a; text-shadow: 0 0 6px rgba(120, 255, 120, 0.55);
 }
 .deck-keys { display: flex; gap: 10px; }
 .deck-key {
+  position: relative;
   width: 60px; height: 52px; display: grid; place-items: center; padding: 0; border-radius: 8px; color: #2a1d55;
   background: linear-gradient(180deg, #f1ecff, #bdb2dd); border: 2px solid #1a1236; box-shadow: 0 5px 0 #5f539a;
   transition: transform 0.06s, box-shadow 0.06s;
 }
-.deck-key.play { background: linear-gradient(180deg, #ffb2da, #ff5fb0); color: #3a0a2a; box-shadow: 0 5px 0 #a02a72; }
+/* fingertip oil and grime where thumbs land, plus scratches; the play key is pressed the most */
+.deck-key::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background:
+    var(--scratch-dark) var(--sx, 0) var(--sy, 0) / 150px 103px,
+    radial-gradient(ellipse 46% 36% at 40% 42%, rgba(255, 255, 255, var(--oil, 0.3)), rgba(255, 255, 255, 0) 72%),
+    radial-gradient(ellipse 28% 22% at 64% 64%, rgba(110, 85, 30, var(--grime, 0.16)), rgba(110, 85, 30, 0) 75%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, rgba(0, 0, 0, 0) 60%, rgba(70, 50, 20, 0.13));
+}
+.deck-key:nth-child(1) { --sx: -20px; --sy: -9px; --oil: 0.2; }
+.deck-key:nth-child(2) { --sx: -80px; --sy: -40px; }
+.deck-key:nth-child(3) { --sx: -50px; --sy: -60px; --oil: 0.24; --grime: 0.12; }
+.deck-key.play { --oil: 0.4; --grime: 0.22; background: linear-gradient(180deg, #ffb2da, #ff5fb0); color: #3a0a2a; box-shadow: 0 5px 0 #a02a72; }
 .deck-key:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 #5f539a; }
 .deck-key.play:active:not(:disabled) { box-shadow: 0 1px 0 #a02a72; }
 .deck-key:disabled { opacity: 0.4; box-shadow: 0 2px 0 #5f539a; transform: translateY(3px); }
@@ -596,3 +636,169 @@ h1, .tabs button, .detail-head h2, .np-heading, .section-title {
   .journal-dock { position: sticky; top: 76px; margin-top: 14px; max-height: calc(100vh - 100px); max-height: calc(100dvh - 100px); display: flex; flex-direction: column; max-width: 560px; }
   .journal-dock .journal { flex: 1 1 auto; }
 }
+
+/* ---- jewel cases ---- */
+.jc-front {
+  position: relative; width: 100%; aspect-ratio: 142 / 125; container-type: inline-size; isolation: isolate;
+  border-radius: 2.2% / 2.5%; background: #0b0912;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 6px 14px rgba(5, 0, 25, 0.55), 3px 4px 0 var(--ink);
+}
+.jc-spine {
+  position: absolute; z-index: 1; left: 0; top: 0; bottom: 0; width: 9%; display: grid; place-items: center; overflow: hidden;
+  border-radius: 2.2% 0 0 2.5% / 2.5% 0 0 2.8%; background: linear-gradient(90deg, #050409, #1a1622 55%, #0a0810);
+}
+.jc-spine span {
+  writing-mode: vertical-rl; transform: rotate(180deg); max-height: 88%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: 700 3cqw/1 system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #cbc2e4;
+}
+.jc-art { position: absolute; z-index: 1; left: 9.5%; top: 2%; width: 84.5%; height: 96%; overflow: hidden; background: #2b1470; }
+.jc-art-fill { display: block; width: 100%; height: 100%; object-fit: cover; }
+.jc-art-fill.placeholder { background: linear-gradient(135deg, #3a1782, #6a35c9); }
+
+/* Clear plastic: a sheen, scratches in different places on every case, and a little yellowing at the edges. */
+.jc-plastic {
+  position: absolute; z-index: 6; inset: 0; border-radius: inherit; pointer-events: none;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.3) 0, rgba(255, 255, 255, 0.08) 16%, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0) 62%, rgba(255, 255, 255, 0.11) 74%, rgba(255, 255, 255, 0) 82%),
+    var(--scratch-light) var(--sx, 0) var(--sy, 0) / 250px 172px,
+    var(--scratch-light) var(--sx2, 0) var(--sy2, 0) / 400px 275px,
+    radial-gradient(ellipse at 50% 40%, rgba(217, 169, 58, 0) 55%, rgba(138, 90, 16, 0.22) 100%);
+  box-shadow: inset 0 0 0 0.5cqw rgba(255, 255, 255, 0.13), inset 0.6cqw 0.6cqw 0.9cqw rgba(255, 255, 255, 0.22), inset -0.4cqw -0.5cqw 0.8cqw rgba(0, 0, 0, 0.35);
+}
+
+/* Stickers: whatever the shop and the label stuck on. Never straight. */
+.jc-st { position: absolute; z-index: 3; transform: rotate(var(--r, 0deg)); box-shadow: 0 0.4cqw 0.8cqw rgba(0, 0, 0, 0.45); }
+.jc-at-tl { left: 11.5%; top: 3.5%; }
+.jc-at-tr { right: 4.5%; top: 3.5%; }
+.jc-at-bl { left: 11.5%; bottom: 3.5%; }
+.jc-at-br { right: 4.5%; bottom: 3.5%; }
+.jc-st-price {
+  padding: 0.8cqw 2.2cqw; border-radius: 1.4cqw; background: #ffe94d; color: #c3111b; border: 0.35cqw dashed rgba(195, 17, 27, 0.5);
+  font: 6.4cqw/1.1 'Permanent Marker', 'Segoe Print', cursive;
+}
+.jc-st-hype {
+  width: 19cqw; aspect-ratio: 1; display: grid; place-items: center; text-align: center; padding: 3cqw; box-sizing: border-box;
+  background: #e5202e; color: #fff35c; font: 800 3.2cqw/1.05 system-ui, sans-serif; letter-spacing: 0.02em; box-shadow: none;
+  clip-path: polygon(50% 0%, 56.1% 7.4%, 64.1% 2%, 67.9% 10.9%, 77% 7.9%, 78.2% 17.5%, 87.8% 17.3%, 86.2% 26.8%, 95.5% 29.2%, 91.3% 37.9%, 99.5% 42.9%, 93% 50%, 99.5% 57.1%, 91.3% 62.1%, 95.5% 70.8%, 86.2% 73.2%, 87.8% 82.7%, 78.2% 82.5%, 77% 92.1%, 67.9% 89.1%, 64.1% 98%, 56.1% 92.6%, 50% 100%, 43.9% 92.6%, 35.9% 98%, 32.1% 89.1%, 23% 92.1%, 21.8% 82.5%, 12.2% 82.7%, 13.8% 73.2%, 4.5% 70.8%, 8.7% 62.1%, 0.5% 57.1%, 7% 50%, 0.5% 42.9%, 8.7% 37.9%, 4.5% 29.2%, 13.8% 26.8%, 12.2% 17.3%, 21.8% 17.5%, 23% 7.9%, 32.1% 10.9%, 35.9% 2%, 43.9% 7.4%);
+}
+.jc-st-barcode { width: 21cqw; padding: 0.8cqw 1.2cqw 0.9cqw; background: #f2efe4; color: #111; display: flex; flex-direction: column; align-items: center; }
+.jc-st-barcode svg { width: 100%; height: 6.5cqw; display: block; fill: #111; }
+.jc-st-barcode span { font: 2cqw/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.14em; margin-top: -0.6cqw; }
+
+/* The hero song: a broad silver polychrome label across the cover that says the one song on the album is the reason the album exists. */
+.jc-hero {
+  position: absolute; z-index: 4; left: 12.75%; width: 78%; bottom: 17%; box-sizing: border-box; padding: 1.8cqw 3cqw 1.6cqw;
+  display: flex; flex-direction: column; align-items: center; gap: 1cqw; text-align: center; color: #15182b;
+  transform: rotate(-3deg); border-radius: 1.4cqw; border: 0.4cqw solid rgba(70, 78, 100, 0.6);
+  box-shadow: 0 0.5cqw 1cqw rgba(0, 0, 0, 0.5), inset 0 0 0 0.3cqw rgba(255, 255, 255, 0.75);
+  background:
+    var(--scratch-micro) 9px 4px / 160px 110px,
+    var(--scratch-micro) 70px 51px / 230px 158px,
+    var(--scratch-light) 3px 19px / 90px 62px,
+    linear-gradient(105deg, rgba(255, 90, 200, 0.22) 0%, rgba(90, 160, 255, 0.26) 22%, rgba(80, 235, 200, 0.24) 42%, rgba(255, 240, 120, 0.2) 58%, rgba(255, 110, 190, 0.24) 76%, rgba(110, 150, 255, 0.26) 100%),
+    linear-gradient(100deg, rgba(255, 255, 255, 0) 28%, rgba(255, 255, 255, 0.7) 44%, rgba(255, 255, 255, 0) 58%),
+    linear-gradient(180deg, #f4f6fa, #c4cad6 50%, #dfe3ec);
+}
+.jc-hero-quote {
+  display: block; width: 100%; font: italic 600 4.6cqw/1.2 Georgia, 'Times New Roman', serif; color: #15182b;
+  overflow-wrap: normal; word-break: normal;
+}
+.jc-hero-title { font: 400 1.2em/1 'Permanent Marker', 'Segoe Print', cursive; font-style: normal; }
+.jc-hero-foot { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 2cqw; }
+.jc-hero-stars { font-size: 3.4cqw; letter-spacing: 0.12em; line-height: 1; color: #2a3a8c; white-space: nowrap; }
+.jc-hero-source { font: 800 2.5cqw/1 system-ui, sans-serif; letter-spacing: 0.14em; color: #4a4f66; text-align: right; }
+
+.detail-case { width: 100%; max-width: 300px; }
+@media (min-width: 768px) { .detail-head .detail-case { flex: none; width: clamp(240px, 32vw, 340px); } }
+
+/* A star beside each song on the album page picks the hero (one per album). */
+.hero-pick { flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; background: none; color: var(--muted); }
+.hero-pick svg { width: 22px; height: 22px; }
+.hero-pick.on { color: #ffd34d; filter: drop-shadow(0 0 6px rgba(255, 200, 60, 0.7)); }
+.tracks li.with-star { display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+.tracks li.with-star:last-child { border-bottom: 0; }
+.tracks li.with-star .track { flex: 1; width: auto; min-width: 0; border-bottom: 0; }
+
+/* ---- the case, opened flat ---- */
+.jc-stage {
+  position: fixed; inset: 0; z-index: 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  padding: 18px 20px 110px; background: rgba(12, 2, 36, 0.8); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  animation: jc-fade 0.25s ease-out;
+}
+@keyframes jc-fade { from { opacity: 0; } }
+.jc-close { position: absolute; top: 14px; right: 16px; width: 44px; height: 44px; padding: 0; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.14); }
+.jc-close svg { width: 22px; height: 22px; }
+.jc-scene { perspective: 2600px; display: grid; place-items: center; }
+.jc-book {
+  --cw: min(44vw, calc((100vh - 280px) / 0.8803), 560px); --cw: min(44vw, calc((100dvh - 280px) / 0.8803), 560px);
+  position: relative; width: calc(var(--cw) * 2); height: calc(var(--cw) * 125 / 142); transform-style: preserve-3d;
+  transform: translateX(calc(var(--cw) * -0.5)); transition: transform 0.8s cubic-bezier(0.4, 0.1, 0.2, 1);
+}
+.jc-book.open { transform: none; }
+.jc-face { position: absolute; inset: 0; container-type: inline-size; border-radius: 2.2% / 2.5%; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+.jc-cover {
+  position: absolute; left: var(--cw); top: 0; width: var(--cw); height: 100%; transform-style: preserve-3d; transform-origin: 0 50%;
+  transform: translateZ(2px) rotateY(0deg); transition: transform 0.8s cubic-bezier(0.4, 0.1, 0.2, 1);
+}
+.jc-book.open .jc-cover { transform: translateZ(2px) rotateY(-180deg); }
+.jc-out .jc-front { height: 100%; aspect-ratio: auto; }
+.jc-in { transform: rotateY(180deg); background: linear-gradient(135deg, rgba(226, 220, 248, 0.2), rgba(226, 220, 248, 0.07)); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 8px 22px rgba(5, 0, 25, 0.5); }
+.jc-tray-face { left: var(--cw); width: var(--cw); height: 100%; inset: 0 auto 0 var(--cw); background: linear-gradient(135deg, rgba(226, 220, 248, 0.16), rgba(226, 220, 248, 0.05)); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 8px 22px rgba(5, 0, 25, 0.5); }
+.jc-rail { position: absolute; z-index: 1; left: 0; top: 0; bottom: 0; width: 6.5%; border-radius: 2.2% 0 0 2.5% / 2.5% 0 0 2.8%; background: linear-gradient(90deg, #050409, #1b1723 60%, #0a0810); }
+.jc-rail-in { left: auto; right: 0; border-radius: 0 2.2% 2.5% 0 / 0 2.5% 2.8% 0; transform: scaleX(-1); }
+.jc-tray { position: absolute; left: 6%; right: 3%; top: 3%; bottom: 3%; border-radius: 1.4cqw; background: radial-gradient(circle at 50% 50%, #191521 0 38%, #0a0810 39% 100%); box-shadow: inset 0 0.4cqw 1.2cqw rgba(0, 0, 0, 0.8); }
+
+.jc-disc { position: absolute; z-index: 2; left: 10.5%; top: 50%; width: 82%; aspect-ratio: 1; transform: translateY(-50%); border-radius: 50%; overflow: hidden; background: #d9dbe8; box-shadow: 0 1.2cqw 2.6cqw rgba(0, 0, 0, 0.6); }
+.jc-disc-print { position: absolute; inset: 2.2%; border-radius: 50%; background: linear-gradient(135deg, #3a1782, #6a35c9) center / cover; }
+.jc-disc-shade {
+  position: absolute; inset: 2.2%; border-radius: 50%;
+  background:
+    conic-gradient(from 20deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.2) 9%, rgba(255, 255, 255, 0) 21%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.16) 60%, rgba(255, 255, 255, 0) 71%),
+    linear-gradient(90deg, rgba(8, 4, 22, 0.1) 0 20%, rgba(8, 4, 22, 0.74) 52%, rgba(8, 4, 22, 0.84));
+}
+.jc-disc-hub { position: absolute; left: 50%; top: 50%; width: 29%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(closest-side, #0b0910 0 43%, #dcdeea 44%, rgba(200, 203, 222, 0.55) 47% 100%); }
+
+.jc-tracks {
+  position: absolute; z-index: 1; left: 54%; top: 22%; width: 37%; height: 56%; margin: 0; padding: 0; list-style: none; overflow-y: auto;
+  overscroll-behavior: contain; scrollbar-width: none; display: flex; flex-direction: column; justify-content: safe center;
+}
+.jc-tracks::-webkit-scrollbar { display: none; }
+.jc-tracks li { display: flex; align-items: center; gap: 0.4cqw; flex: none; }
+.jc-tracks button { background: none; border: 0; padding: 0; border-radius: 0; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85); }
+.jc-star { flex: none; display: grid; place-items: center; width: 4.6cqw; height: 5.4cqw; color: rgba(255, 255, 255, 0.4); }
+.jc-star svg { width: 3cqw; height: 3cqw; }
+.jc-tracks li.hero .jc-star { color: #ffd34d; filter: drop-shadow(0 0 0.8cqw rgba(255, 200, 60, 0.9)); }
+.jc-track { flex: 1; min-width: 0; display: flex; gap: 1cqw; align-items: baseline; text-align: left; font: 600 2.7cqw/1.5 system-ui, sans-serif; color: #f4eefc; }
+.jc-no { flex: none; color: rgba(255, 255, 255, 0.5); font-variant-numeric: tabular-nums; }
+.jc-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jc-tracks li.playing .jc-name { color: #ff9fd3; }
+.jc-tracks li.hero .jc-name { color: #ffd34d; text-shadow: 0 0 1.2cqw rgba(255, 190, 40, 0.8); }
+
+.jc-wear { position: absolute; z-index: 5; inset: 0; width: 100%; height: 100%; pointer-events: none; border-radius: inherit; }
+
+/* Left half: the booklet slipped under the cover, the album art pinned in its corner, notes from the tape deck below and beside it. */
+.jc-booklet {
+  position: absolute; left: 3%; top: 2.8%; right: 9%; bottom: 2.8%; padding: 4cqw 4cqw 3cqw; overflow-y: auto; scrollbar-width: none;
+  background: linear-gradient(160deg, #f3ebd8, #e6dcc3); box-shadow: 0 0.5cqw 1.4cqw rgba(0, 0, 0, 0.5); border-radius: 0.6cqw;
+}
+.jc-booklet::-webkit-scrollbar { display: none; }
+.jc-pinned {
+  float: left; position: relative; width: 33cqw; height: 33cqw; margin: 0.5cqw 3.5cqw 2cqw 0.5cqw; padding: 1.1cqw; box-sizing: border-box; background: #fbf8ef;
+  transform: rotate(-9deg); box-shadow: 0 0.5cqw 1.2cqw rgba(0, 0, 0, 0.45); shape-outside: margin-box;
+}
+.jc-pinned .jc-art-fill { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15); }
+.jc-pinned::before, .jc-pinned::after { content: ''; position: absolute; width: 5cqw; height: 5cqw; background: #2a2540; }
+.jc-pinned::before { left: -0.4cqw; top: -0.4cqw; clip-path: polygon(0 0, 100% 0, 0 100%); }
+.jc-pinned::after { right: -0.4cqw; bottom: -0.4cqw; clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+.jc-notes { list-style: none; margin: 0; padding: 0; font: 3.1cqw/1.55 'Segoe Print', 'Bradley Hand', 'Permanent Marker', cursive; color: #26306b; }
+.jc-notes li { display: flex; gap: 1.6cqw; padding: 0.2cqw 0; border-bottom: 1px solid rgba(60, 80, 150, 0.22); overflow-wrap: anywhere; }
+.jc-notes .jc-no { color: rgba(38, 48, 107, 0.5); }
+.jc-notes b { font-weight: 700; }
+
+.jc-actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; column-gap: 14px; max-width: 760px; text-align: center; }
+.jc-actions > * { margin-top: 0; margin-bottom: 0; }
+.jc-actions .play-actions { margin: 6px 0 0; }
+.jc-caption { flex-basis: 100%; margin: 0; font-size: 15px; color: var(--muted); }
+.jc-caption strong { color: var(--text); }
+.jc-actions .error { flex-basis: 100%; }
+@media (prefers-reduced-motion: reduce) { .jc-book, .jc-cover { transition: none; } .jc-stage { animation: none; } }

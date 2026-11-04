@@ -1,5 +1,9 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { CassetteIcon, CloseIcon, EqualizerIcon, PlayIcon, SearchIcon, ShuffleIcon } from './icons';
+import { type HeroStore } from './heroes';
+import { pickReview } from './reviews';
+import { CassetteIcon, CloseIcon, EqualizerIcon, PlayIcon, SearchIcon, ShuffleIcon, StarIcon } from './icons';
+import { caseNotes } from './jewel';
+import { CaseFront, OpenCase, type HeroSticker } from './JewelCase';
 import { usePlayer } from './player';
 import { buildIndex, search, type SearchResults } from './search';
 import TapeDeck from './TapeDeck';
@@ -53,11 +57,14 @@ function PlayActions({ tracks }: { tracks: Track[] }) {
 
 const CODEC_LABEL = { alac: 'ALAC', aac: 'AAC', mp3: 'MP3' } as const;
 
-function TrackRow({ track, index, queue, showArtist }: { track: Track; index: number; queue: Track[]; showArtist: boolean }) {
+function TrackRow({ track, index, queue, showArtist, hero }: {
+  track: Track; index: number; queue: Track[]; showArtist: boolean;
+  hero?: { isHero: boolean; onToggle: () => void };
+}) {
   const player = usePlayer();
   const active = player.current?.id === track.id;
   return (
-    <li>
+    <li className={hero ? 'with-star' : undefined}>
       <button className={`track ${active ? 'active' : ''}`} onClick={() => player.play(queue, index)}>
         <span className="track-no">
           {active ? <EqualizerIcon className={`eq ${player.playing ? 'on' : ''}`} width={16} height={16} /> : track.trackNo || index + 1}
@@ -69,16 +76,61 @@ function TrackRow({ track, index, queue, showArtist }: { track: Track; index: nu
         <span className={`badge ${track.codec}`}>{CODEC_LABEL[track.codec]}</span>
         <span className="track-time">{formatTime(track.durationSec)}</span>
       </button>
+      {hero && (
+        <button
+          className={`hero-pick ${hero.isHero ? 'on' : ''}`}
+          aria-pressed={hero.isHero}
+          aria-label={hero.isHero ? `Remove hero song: ${track.title}` : `Make “${track.title}” the hero song`}
+          onClick={hero.onToggle}
+        >
+          <StarIcon filled={hero.isHero} />
+        </button>
+      )}
     </li>
   );
 }
 
-function TrackList({ tracks, showArtist, columns = false }: { tracks: Track[]; showArtist: boolean; columns?: boolean }) {
+function TrackList({ tracks, showArtist, columns = false, heroId, onToggleHero }: {
+  tracks: Track[]; showArtist: boolean; columns?: boolean; heroId?: string; onToggleHero?: (trackId: string) => void;
+}) {
   return (
     <ul className={`tracks ${columns ? 'columns' : ''}`}>
-      {tracks.map((t, i) => <TrackRow key={`${t.id}-${i}`} track={t} index={i} queue={tracks} showArtist={showArtist} />)}
+      {tracks.map((t, i) => (
+        <TrackRow
+          key={`${t.id}-${i}`} track={t} index={i} queue={tracks} showArtist={showArtist}
+          hero={onToggleHero ? { isHero: t.id === heroId, onToggle: () => onToggleHero(t.id) } : undefined}
+        />
+      ))}
     </ul>
   );
+}
+
+/** An album on the shelf: its jewel case, with the title and artist underneath. */
+function AlbumCard({ album, art, hero, onOpen }: { album: Album; art: string | null; hero?: HeroSticker; onOpen: () => void }) {
+  return (
+    <button className="card" onClick={onOpen}>
+      <CaseFront album={album} art={art} hero={hero} />
+      <span className="card-title">{album.title}</span>
+      <span className="card-sub">{album.artist}</span>
+    </button>
+  );
+}
+
+// The case only opens flat where there is room for two halves side by side: landscape on an iPad or a desktop.
+const OPENS_FLAT = '(orientation: landscape) and (min-width: 900px) and (min-height: 540px)';
+
+function useCaseOpensFlat(): boolean {
+  const query = () => typeof window.matchMedia === 'function' && window.matchMedia(OPENS_FLAT).matches;
+  const [flat, setFlat] = useState(query);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const list = window.matchMedia(OPENS_FLAT);
+    const onChange = () => setFlat(list.matches);
+    onChange();
+    list.addEventListener('change', onChange);
+    return () => list.removeEventListener('change', onChange);
+  }, []);
+  return flat;
 }
 
 type Tab = 'albums' | 'tracks' | 'playlists' | 'tapedeck';
@@ -149,11 +201,12 @@ function SearchBox({ value, onChange }: { value: string; onChange: (v: string) =
 const ALBUM_RESULT_LIMIT = 48;
 
 function SearchResultsView({
-  results, query, albumArt, playlistArts, onAlbum, onPlaylist,
+  results, query, albumArt, heroOf, playlistArts, onAlbum, onPlaylist,
 }: {
   results: SearchResults;
   query: string;
   albumArt: (a: Album) => string | null;
+  heroOf: (a: Album) => HeroSticker | undefined;
   playlistArts: (p: Playlist) => string[];
   onAlbum: (id: string) => void;
   onPlaylist: (id: string) => void;
@@ -169,11 +222,7 @@ function SearchResultsView({
           <h3 className="section-title">Albums</h3>
           <div className="grid">
             {albums.slice(0, ALBUM_RESULT_LIMIT).map((a) => (
-              <button key={a.id} className="card" onClick={() => onAlbum(a.id)}>
-                <Art src={albumArt(a)} />
-                <span className="card-title">{a.title}</span>
-                <span className="card-sub">{a.artist}</span>
-              </button>
+              <AlbumCard key={a.id} album={a} art={albumArt(a)} hero={heroOf(a)} onOpen={() => onAlbum(a.id)} />
             ))}
           </div>
           {albums.length > ALBUM_RESULT_LIMIT && (
@@ -208,16 +257,23 @@ function SearchResultsView({
   );
 }
 
-export default function LibraryView({ library, artFor, tapes, onDeckVisible }: {
+export default function LibraryView({ library, artFor, tapes, heroes, onDeckVisible }: {
   library: Library;
   artFor: (t: Track) => string | null;
   tapes: TapeStore;
+  heroes: HeroStore;
   onDeckVisible?: (visible: boolean) => void;
 }) {
   const [view, setView] = useState<View>({ kind: 'tab', tab: 'albums' });
   const trackById = useMemo(() => new Map(library.tracks.map((t) => [t.id, t])), [library]);
   const resolve = (ids: string[]) => ids.map((id) => trackById.get(id)).filter((t): t is Track => !!t);
   const albumArt = (a: Album) => (a.artKey ? `/${a.artKey}` : null);
+  const reviewOf = (albumId: string) => heroes.reviews[albumId] ?? pickReview([], albumId);
+  const heroOf = (a: Album): HeroSticker | undefined => {
+    const id = heroes.heroes[a.id];
+    const track = id ? trackById.get(id) : undefined;
+    return track ? { title: track.title, ...reviewOf(a.id) } : undefined;
+  };
 
   // A new screen should start at the top, not wherever the previous list was scrolled.
   const viewKey = view.kind === 'tab' ? view.tab : `${view.kind}:${view.id}`;
@@ -233,6 +289,11 @@ export default function LibraryView({ library, artFor, tapes, onDeckVisible }: {
   const searching = query.trim().length > 0;
   const backLabel = searching ? 'Search' : null;
 
+  // Where there is room the case opens like a real one; elsewhere an album opens its page.
+  const flat = useCaseOpensFlat();
+  const [openCaseId, setOpenCaseId] = useState<string | null>(null);
+  const openCase = flat && openCaseId ? library.albums.find((a) => a.id === openCaseId) : undefined;
+
   if (view.kind === 'album') {
     const album = library.albums.find((a) => a.id === view.id);
     if (!album) return null;
@@ -241,7 +302,7 @@ export default function LibraryView({ library, artFor, tapes, onDeckVisible }: {
       <section>
         <button className="back" onClick={() => setView({ kind: 'tab', tab: 'albums' })}>‹ {backLabel ?? 'Albums'}</button>
         <header className="detail-head">
-          <Art src={albumArt(album)} className="large" />
+          <div className="detail-case"><CaseFront album={album} art={albumArt(album)} hero={heroOf(album)} /></div>
           <div className="detail-text">
             <h2>{album.title}</h2>
             <p className="muted">{album.artist}{album.year ? ` · ${album.year}` : ''}</p>
@@ -249,7 +310,8 @@ export default function LibraryView({ library, artFor, tapes, onDeckVisible }: {
             <MakeCassetteButton album={album} tapes={tapes} onOpenDeck={() => setView({ kind: 'tab', tab: 'tapedeck' })} />
           </div>
         </header>
-        <TrackList tracks={tracks} showArtist={false} />
+        <TrackList tracks={tracks} showArtist={false} heroId={heroes.heroes[album.id]} onToggleHero={(id) => void heroes.toggle(album.id, id)} />
+        {heroes.error && <p className="error" role="alert">{heroes.error}</p>}
       </section>
     );
   }
@@ -276,8 +338,9 @@ export default function LibraryView({ library, artFor, tapes, onDeckVisible }: {
 
   const tab = view.tab;
   const allTracks = [...library.tracks].sort((a, b) => a.title.localeCompare(b.title));
-  const openAlbum = (id: string) => setView({ kind: 'album', id });
+  const openAlbum = (id: string) => (flat ? setOpenCaseId(id) : setView({ kind: 'album', id }));
   const openPlaylist = (id: string) => setView({ kind: 'playlist', id });
+  const caseTracks = openCase ? resolve(openCase.trackIds) : [];
   return (
     <section>
       <nav className="tabs">
@@ -300,6 +363,7 @@ export default function LibraryView({ library, artFor, tapes, onDeckVisible }: {
           results={results}
           query={query.trim()}
           albumArt={albumArt}
+          heroOf={heroOf}
           playlistArts={(p) => coverArts(resolve(p.trackIds), artFor)}
           onAlbum={openAlbum}
           onPlaylist={openPlaylist}
@@ -308,11 +372,7 @@ export default function LibraryView({ library, artFor, tapes, onDeckVisible }: {
       {!searching && tab === 'albums' && (
         <div className="grid">
           {library.albums.map((a) => (
-            <button key={a.id} className="card" onClick={() => openAlbum(a.id)}>
-              <Art src={albumArt(a)} />
-              <span className="card-title">{a.title}</span>
-              <span className="card-sub">{a.artist}</span>
-            </button>
+            <AlbumCard key={a.id} album={a} art={albumArt(a)} hero={heroOf(a)} onOpen={() => openAlbum(a.id)} />
           ))}
         </div>
       )}
@@ -334,6 +394,30 @@ export default function LibraryView({ library, artFor, tapes, onDeckVisible }: {
         </div>
       )}
       {!searching && tab === 'tapedeck' && <TapeDeck library={library} tapes={tapes} resolve={resolve} onVisible={onDeckVisible} />}
+      {openCase && (
+        <OpenCase
+          album={openCase}
+          art={albumArt(openCase)}
+          tracks={caseTracks}
+          notes={caseNotes(openCase.id, tapes.cassettes, tapes.entries, (id) => trackById.get(id)?.title)}
+          heroId={heroes.heroes[openCase.id]}
+          heroReview={reviewOf(openCase.id)}
+          heroError={heroes.error}
+          onToggleHero={(id) => void heroes.toggle(openCase.id, id)}
+          onClose={() => setOpenCaseId(null)}
+        >
+          <PlayActions tracks={caseTracks} />
+          <MakeCassetteButton
+            album={openCase}
+            tapes={tapes}
+            onOpenDeck={() => {
+              setOpenCaseId(null);
+              setQuery('');
+              setView({ kind: 'tab', tab: 'tapedeck' });
+            }}
+          />
+        </OpenCase>
+      )}
     </section>
   );
 }

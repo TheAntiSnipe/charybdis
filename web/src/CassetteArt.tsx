@@ -1,7 +1,8 @@
-import { CSSProperties, ReactNode, useId, useState } from 'react';
+import { CSSProperties, ReactNode, useId, useMemo, useState } from 'react';
 import { generatedCover } from './tapes';
 import { LEFT_X, REEL_Y, RIGHT_X, tapeGeometry } from './tapeGeometry';
 import type { CassetteStyle } from './types';
+import { wearFor } from './wear';
 
 export interface CassetteLook {
   style: CassetteStyle;
@@ -157,6 +158,34 @@ function ExecutiveLabel({ uid, title, length }: { uid: string; title: string; le
   );
 }
 
+/** Years of handling: hairline scratches, dust and a faint amber cast. The clear shell yellows and scratches most. */
+function WearOverlay({ uid, seed, clear }: { uid: string; seed: string; clear: boolean }) {
+  const wear = useMemo(() => wearFor(seed, clear ? 34 : 26), [seed, clear]);
+  return (
+    <svg className="cassette-wear" viewBox="0 0 200 126" aria-hidden focusable="false">
+      <defs>
+        <clipPath id={`${uid}c`}>
+          <rect x="1.2" y="1.2" width="197.6" height="123.6" rx="9" />
+        </clipPath>
+        <radialGradient id={`${uid}y`} cx="0.5" cy="0.4" r="0.75">
+          <stop offset="0.45" stopColor="#d9a93a" stopOpacity={clear ? 0.06 : 0.02} />
+          <stop offset="1" stopColor="#8a5a10" stopOpacity={clear ? 0.26 : 0.17} />
+        </radialGradient>
+      </defs>
+      <g clipPath={`url(#${uid}c)`}>
+        <rect width="200" height="126" fill={`url(#${uid}y)`} />
+        {wear.scratches.map((s, i) => (
+          <line
+            key={i} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} strokeLinecap="round"
+            stroke={s.light ? '#fff' : '#000'} strokeOpacity={s.opacity} strokeWidth={s.width}
+          />
+        ))}
+        {wear.specks.map((s, i) => <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#fff" fillOpacity={s.opacity} />)}
+      </g>
+    </svg>
+  );
+}
+
 /** A colourful abstract cover, the same every time for the same tape. */
 function GeneratedArt({ uid, seed }: { uid: string; seed: string }) {
   const g = generatedCover(seed);
@@ -190,6 +219,7 @@ export default function CassetteArt({ look, playing, rewinding = false }: { look
       <>
         <ClearCassette uid={uid} progress={look.progress} />
         <span className="cassette-label">{look.title}</span>
+        <WearOverlay uid={uid} seed={look.seed} clear />
       </>
     );
   } else if (look.style === 'executive') {
@@ -197,6 +227,7 @@ export default function CassetteArt({ look, playing, rewinding = false }: { look
       <>
         <SolidShell uid={uid} />
         <ExecutiveLabel uid={uid} title={look.title} length={look.length} />
+        <WearOverlay uid={uid} seed={look.seed} clear={false} />
       </>
     );
   } else {
@@ -219,6 +250,7 @@ export default function CassetteArt({ look, playing, rewinding = false }: { look
         <svg className="cassette-window" viewBox="0 0 200 126" aria-hidden focusable="false">
           <PillWindow uid={uid} />
         </svg>
+        <WearOverlay uid={uid} seed={look.seed} clear={false} />
       </>
     );
   }

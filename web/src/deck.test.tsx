@@ -11,7 +11,7 @@ import type { Cassette, CassetteStyle, Library, Track } from './types';
 
 vi.mock('./deckSound', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./deckSound')>()),
-  playInsert: vi.fn(),
+  playInsert: vi.fn(() => ({ musicAtS: 2, fadeS: 1 })),
   playEject: vi.fn(),
   playKey: vi.fn(),
   playRewind: vi.fn(),
@@ -19,7 +19,7 @@ vi.mock('./deckSound', async (importOriginal) => ({
 
 class FakeAudio extends EventTarget {
   static last: FakeAudio;
-  src = ''; paused = true; ended = false; currentTime = 0; duration = 100; preload = '';
+  src = ''; paused = true; ended = false; currentTime = 0; duration = 100; preload = ''; volume = 1;
   constructor() { super(); FakeAudio.last = this; }
   play() { this.paused = false; this.dispatchEvent(new Event('play')); return Promise.resolve(); }
   pause() { if (!this.paused) { this.paused = true; this.dispatchEvent(new Event('pause')); } }
@@ -94,9 +94,14 @@ function motion(reduced: boolean) {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: reduced && query.includes('reduce'), addEventListener() {}, removeEventListener() {} }));
 }
 
+const TIMING = { musicAtS: 2, fadeS: 1 }; // what the mocked insert sound reports
+const STARTUP_MS = (TIMING.musicAtS + TIMING.fadeS) * 1000 + 1;
+
+// The tape starts itself once the insert sound has faded; this waits that out and stops it, as a user who pauses would.
 async function loadAndSettle(name?: string) {
   fireEvent.click(spine(name));
-  advance(INSERT_MS + 1);
+  advance(STARTUP_MS);
+  act(() => FakeAudio.last.pause());
 }
 
 beforeEach(() => {
@@ -140,7 +145,38 @@ describe('Deck', () => {
     advance(2);
     expect(bay().className).toContain('loaded');
     expect(lcd()).toBe('02'); // resumes on the saved song (index 1)
-    expect((screen.getByRole('button', { name: 'Play' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('starts the tape itself as the insert sound fades, fading the music in and keeping the keys locked until then', () => {
+    render(<Harness cassettes={[tape()]} />);
+    fireEvent.click(spine());
+    const audio = FakeAudio.last;
+    const keys = () => [/^(Play|Pause)$/, 'Rewind', 'Eject tape'].map((name) => (screen.getByRole('button', { name }) as HTMLButtonElement).disabled);
+    advance(INSERT_MS + 1);
+    expect(keys()).toEqual([true, true, true]);
+    expect(audio.paused).toBe(true);
+    expect(playerApi.playing).toBe(false);
+    advance(TIMING.musicAtS * 1000 - INSERT_MS - 1);
+    expect(audio.paused).toBe(false);
+    expect(playerApi.playing).toBe(true);
+    expect(audio.volume).toBeLessThan(0.1);
+    advance(TIMING.fadeS * 500);
+    expect(audio.volume).toBeGreaterThan(0.5);
+    expect(keys()).toEqual([true, true, true]);
+    advance(TIMING.fadeS * 500 + 100);
+    expect(audio.volume).toBe(1);
+    expect(keys()).toEqual([false, false, false]);
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+  });
+
+  it('does not start the tape if normal playback takes over during the insert', () => {
+    render(<Harness cassettes={[tape()]} />);
+    fireEvent.click(spine());
+    act(() => playerApi.play([track(1)], 0));
+    advance(STARTUP_MS);
+    expect(playerApi.tape).toBeNull();
+    expect(playerApi.tapeStarting).toBe(false);
+    expect(FakeAudio.last.volume).toBe(1);
   });
 
   it('spins the reels only while playing', () => {
@@ -253,6 +289,7 @@ describe('Deck', () => {
     fireEvent.click(spine());
     expect(bay().className).toContain('loaded');
     expect(sound.playInsert).toHaveBeenCalledWith(0);
+    advance(STARTUP_MS);
     fireEvent.click(screen.getByRole('button', { name: 'Eject tape' }));
     expect(bay().className).toContain('idle');
   });

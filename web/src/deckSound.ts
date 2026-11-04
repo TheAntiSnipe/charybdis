@@ -1,6 +1,46 @@
-// Mechanical deck sounds, synthesised with Web Audio so the app ships no audio files.
+// Mechanical deck sounds. Inserting and ejecting play two short recordings (web/public/sounds);
+// everything else, and both of those if the recordings can't be loaded, is synthesised with Web Audio.
 // A context is made per sound inside the user's tap and closed right after, so it never lingers
 // next to the <audio> element that plays the music.
+
+const CLIPS = { insert: '/sounds/cassette-insert.mp3', eject: '/sounds/cassette-eject.mp3' } as const;
+type ClipName = keyof typeof CLIPS;
+
+/** How long the music and the insert recording overlap while one fades into the other. */
+export const INSERT_CROSSFADE_S = 1.3;
+const SYNTH_INSERT_CROSSFADE_S = 0.4;
+
+const clips: Partial<Record<ClipName, AudioBuffer>> = {};
+let preloaded = false;
+
+/** Fetches and decodes the recordings ahead of time so a tap can play them with no delay. Safe to call repeatedly. */
+export function preloadDeckSounds(): void {
+  if (preloaded) return;
+  const w = window as unknown as { OfflineAudioContext?: typeof OfflineAudioContext; webkitOfflineAudioContext?: typeof OfflineAudioContext };
+  const Offline = w.OfflineAudioContext ?? w.webkitOfflineAudioContext;
+  if (!Offline || typeof fetch !== 'function') return;
+  preloaded = true;
+  void Promise.all((Object.keys(CLIPS) as ClipName[]).map(async (name) => {
+    try {
+      const response = await fetch(CLIPS[name]);
+      if (!response.ok) return;
+      clips[name] = await new Offline(2, 1, 44100).decodeAudioData(await response.arrayBuffer());
+    } catch {
+      // Falls back to the synthesised sound.
+    }
+  })).then(() => {
+    if (!clips.insert || !clips.eject) preloaded = false; // try again next time the deck opens
+  });
+}
+
+function playClip(ctx: AudioContext, buffer: AudioBuffer): GainNode {
+  const source = ctx.createBufferSource();
+  const gain = ctx.createGain();
+  source.buffer = buffer;
+  source.connect(gain).connect(ctx.destination);
+  source.start(ctx.currentTime);
+  return gain;
+}
 
 function newContext(): AudioContext | null {
   const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -50,15 +90,39 @@ function click(ctx: AudioContext, at: number, centre: number, length: number, le
   source.start(at);
 }
 
-/** The cassette seating and the door latching, `delay` seconds from now. */
-export function playInsert(delay = 0): void {
+export interface InsertTiming {
+  /** Seconds after the tap when the music should start, fading in over `fadeS` as the sound fades out. */
+  musicAtS: number;
+  fadeS: number;
+}
+
+/**
+ * The cassette going in and the tape starting to run. Plays the recording from the tap (its first thud
+ * lands as the cassette seats) and fades it out over its last `INSERT_CROSSFADE_S`; the caller starts the music
+ * at the returned time. `delay` only places the synthesised stand-in's clunk, used if the recording isn't loaded.
+ */
+export function playInsert(delay = 0): InsertTiming {
+  const clip = clips.insert;
   const ctx = newContext();
-  if (!ctx) return;
-  const at = ctx.currentTime + delay;
-  thump(ctx, at, 130, 48, 0.16, 0.9);
-  click(ctx, at, 900, 0.05, 0.55);
-  click(ctx, at + 0.1, 2400, 0.03, 0.4);
-  closeAfter(ctx, delay + 0.4);
+  if (!clip) {
+    if (ctx) {
+      const at = ctx.currentTime + delay;
+      thump(ctx, at, 130, 48, 0.16, 0.9);
+      click(ctx, at, 900, 0.05, 0.55);
+      click(ctx, at + 0.1, 2400, 0.03, 0.4);
+      closeAfter(ctx, delay + 0.4);
+    }
+    return { musicAtS: delay + 0.2, fadeS: SYNTH_INSERT_CROSSFADE_S };
+  }
+  const fadeS = Math.min(INSERT_CROSSFADE_S, clip.duration);
+  const musicAtS = clip.duration - fadeS;
+  if (ctx) {
+    const gain = playClip(ctx, clip);
+    gain.gain.setValueAtTime(1, ctx.currentTime + musicAtS);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + clip.duration);
+    closeAfter(ctx, clip.duration);
+  }
+  return { musicAtS, fadeS };
 }
 
 /** The eject button's spring, then the cassette popping up. */
@@ -66,6 +130,11 @@ export function playEject(): void {
   const ctx = newContext();
   if (!ctx) return;
   const at = ctx.currentTime;
+  if (clips.eject) {
+    playClip(ctx, clips.eject);
+    closeAfter(ctx, clips.eject.duration);
+    return;
+  }
   click(ctx, at, 2000, 0.05, 0.45);
   thump(ctx, at + 0.04, 260, 90, 0.12, 0.7);
   click(ctx, at + 0.09, 1200, 0.12, 0.35);

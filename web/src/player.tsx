@@ -19,6 +19,11 @@ export interface TapeLoad {
   positionSec: number;
 }
 
+export interface TapeStartup {
+  afterS: number; // when the music starts, counted from the tap that loaded the tape
+  fadeS: number; // how long it takes to reach full volume where the platform allows it (iOS ignores volume)
+}
+
 interface PlayerApi {
   current: Track | null;
   playing: boolean;
@@ -38,7 +43,9 @@ interface PlayerApi {
   next: () => void;
   prev: () => void;
   seek: (seconds: number) => void;
-  loadTape: (tape: TapeLoad) => void;
+  loadTape: (tape: TapeLoad, startup?: TapeStartup) => void;
+  /** True from loading a tape with a startup until its music has finished fading in; the deck ignores its keys meanwhile. */
+  tapeStarting: boolean;
   relabelTape: (id: string, label: string) => void;
   /** Restarts the song, or from near its start goes back one. Returns which it did (null with no tape loaded). */
   rewind: () => 'restart' | 'previous' | null;
@@ -106,6 +113,19 @@ export function PlayerProvider({
   const [tapeEnded, setTapeEnded] = useState(false);
   const [tapeProgress, setTapeProgress] = useState(0);
   const lastProgressRef = useRef(0);
+  const [tapeStarting, setTapeStarting] = useState(false);
+  const startupTimer = useRef<number | undefined>(undefined);
+  const fadeTimer = useRef<number | undefined>(undefined);
+  const unlockingRef = useRef(false);
+
+  // Stops a pending or running startup and leaves the element at full volume.
+  const cancelStartup = useCallback(() => {
+    window.clearTimeout(startupTimer.current);
+    window.clearInterval(fadeTimer.current);
+    unlockingRef.current = false;
+    audio.volume = 1;
+    setTapeStarting(false);
+  }, [audio]);
   const lastSaveRef = useRef(0);
   const onTapeProgressRef = useRef(onTapeProgress);
   onTapeProgressRef.current = onTapeProgress;
@@ -147,6 +167,7 @@ export function PlayerProvider({
   }, [audio, publishProgress]);
 
   const eject = useCallback(() => {
+    cancelStartup();
     if (!tapeRef.current) return;
     saveTapeNow();
     tapeRef.current = null;
@@ -162,9 +183,35 @@ export function PlayerProvider({
       navigator.mediaSession.metadata = null;
       navigator.mediaSession.playbackState = 'none';
     }
-  }, [audio, saveTapeNow]);
+  }, [audio, cancelStartup, saveTapeNow]);
 
-  const loadTape = useCallback((load: TapeLoad) => {
+  // Starts the music `afterS` after the tap, fading it in where volume can be set (it can't on iOS).
+  const scheduleStartup = useCallback(({ afterS, fadeS }: TapeStartup) => {
+    setTapeStarting(true);
+    // iOS only lets a tap start the element, so the tap starts it and pauses it at once; the timer can then resume it.
+    unlockingRef.current = true;
+    audio.play().catch(() => undefined);
+    audio.pause();
+    startupTimer.current = window.setTimeout(() => {
+      unlockingRef.current = false;
+      audio.volume = 0.5;
+      const fades = audio.volume === 0.5;
+      audio.volume = fades ? 0 : 1;
+      audio.play().catch(() => {
+        cancelStartup();
+        setPlaying(false);
+      });
+      const began = Date.now();
+      fadeTimer.current = window.setInterval(() => {
+        const done = Math.min(1, (Date.now() - began) / (fadeS * 1000));
+        if (fades) audio.volume = Math.sin(done * Math.PI / 2);
+        if (done >= 1) cancelStartup();
+      }, 50);
+    }, afterS * 1000);
+  }, [audio, cancelStartup]);
+
+  const loadTape = useCallback((load: TapeLoad, startup?: TapeStartup) => {
+    cancelStartup();
     if (tapeRef.current && tapeRef.current.id !== load.id) saveTapeNow();
     audio.pause();
     queueRef.current = [];
@@ -184,7 +231,8 @@ export function PlayerProvider({
     }
     tapeRef.current = { id: load.id, kind: load.kind, label: load.label, tracks: load.tracks, index, starts, totalSec };
     startTape(index, load.positionSec, false);
-  }, [audio, saveTapeNow, startTape]);
+    if (startup) scheduleStartup(startup);
+  }, [audio, cancelStartup, saveTapeNow, scheduleStartup, startTape]);
 
   // The user renamed the tape in the deck; keep the lock screen in step.
   const relabelTape = useCallback((id: string, label: string) => {
@@ -326,10 +374,15 @@ export function PlayerProvider({
 
   useEffect(() => {
     const onPlay = () => {
+      if (unlockingRef.current) return;
       setPlaying(true);
       if (tapeRef.current) setTapeEnded(false);
     };
     const onPause = () => {
+      if (unlockingRef.current) {
+        unlockingRef.current = false; // the pause that ends the tap-time unlock, not the listener's
+        return;
+      }
       setPlaying(false);
       if (tapeRef.current && !audio.ended) saveTapeNow();
     };
@@ -357,6 +410,8 @@ export function PlayerProvider({
 
   // Home unmounts on sign-out; the Audio element is detached from the DOM so it must be stopped explicitly.
   useEffect(() => () => {
+    window.clearTimeout(startupTimer.current);
+    window.clearInterval(fadeTimer.current);
     audio.pause();
     audio.removeAttribute('src');
     audio.load();
@@ -419,11 +474,11 @@ export function PlayerProvider({
 
   const value = useMemo(
     () => ({
-      current, playing, position, duration, shuffle, upNext, tape, tapeEnded, tapeProgress,
+      current, playing, position, duration, shuffle, upNext, tape, tapeEnded, tapeProgress, tapeStarting,
       play, jumpTo, playShuffled, toggleShuffle, toggle, next, prev, seek, loadTape, relabelTape, rewind, eject,
     }),
     [
-      current, playing, position, duration, shuffle, upNext, tape, tapeEnded, tapeProgress,
+      current, playing, position, duration, shuffle, upNext, tape, tapeEnded, tapeProgress, tapeStarting,
       play, jumpTo, playShuffled, toggleShuffle, toggle, next, prev, seek, loadTape, relabelTape, rewind, eject,
     ],
   );

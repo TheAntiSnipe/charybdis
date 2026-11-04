@@ -1,8 +1,10 @@
-"""Tape deck API: cassettes (frozen track lists), their resume point, and journal entries.
+"""Tape deck API: cassettes (frozen track lists), their resume point, and journal entries. Also the hero song
+the user picks for an album (shown as a sticker on its jewel case).
 
 Single-table layout (see docs/tape-deck-design.md):
   CASSETTE  sk = album-<albumId> | artist-<sha1(name)[:16]>
   ENTRY     sk = <cassetteId>#<slot, 4 digits>
+  HERO      sk = <albumId>, trackId = the one song the album is known for
 """
 import base64
 import hashlib
@@ -20,6 +22,7 @@ from botocore.exceptions import ClientError
 MAX_TRACKS = 2000
 MAX_TEXT = 280
 MAX_NAME = 200
+MAX_REVIEW = 200
 CASSETTE_ID = re.compile(r'^(album|artist)-[0-9a-f]{12,16}$')
 ALBUM_ID = re.compile(r'^[0-9a-f]{12}$')
 SLOT = re.compile(r'^[0-9]{1,4}$')
@@ -300,7 +303,56 @@ def delete_cassette(event):
     return _response(204)
 
 
+def list_heroes(_event):
+    heroes = []
+    for item in _query('HERO'):
+        hero = {'albumId': item['sk'], 'trackId': item['trackId']}
+        for key in ('phrase', 'source'):
+            if key in item:
+                hero[key] = item[key]
+        heroes.append(hero)
+    return _response(200, {'heroes': heroes})
+
+
+def _review_text(data, key):
+    """The sticker's review wording is picked by the app (so it can avoid repeats) and stored as plain text."""
+    value = data.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not 0 < len(value) <= MAX_REVIEW:
+        raise ApiError(400, f'{key} must be text of at most {MAX_REVIEW} characters')
+    return value
+
+
+def save_hero(event):
+    """One hero per album: a new pick replaces the old one, and `trackId: null` takes the sticker off. `phrase` and `source` are the review shown on the sticker."""
+    album_id = (event.get('pathParameters') or {}).get('albumId', '')
+    if not ALBUM_ID.match(album_id):
+        raise ApiError(400, 'Invalid album id')
+    data = _body(event)
+    if 'trackId' not in data:
+        raise ApiError(400, 'trackId is required (or null to clear it)')
+    track_id = data['trackId']
+
+    if track_id is None:
+        table().delete_item(Key={'pk': 'HERO', 'sk': album_id})
+        return _response(204)
+    if not isinstance(track_id, str) or not 0 < len(track_id) <= MAX_NAME:
+        raise ApiError(400, 'trackId must be text or null')
+    review = {key: text for key in ('phrase', 'source') if (text := _review_text(data, key)) is not None}
+
+    album = table().get_item(Key={'pk': 'ALBUM', 'sk': album_id}).get('Item')
+    if album is None:
+        raise ApiError(404, 'No such album')
+    if track_id not in album.get('trackIds', []):
+        raise ApiError(400, 'That song is not on this album')
+    table().put_item(Item={'pk': 'HERO', 'sk': album_id, 'trackId': track_id, **review, 'updatedAt': int(time.time())})
+    return _response(200, {'albumId': album_id, 'trackId': track_id, **review})
+
+
 ROUTES = {
+    'GET /api/heroes': list_heroes,
+    'PUT /api/heroes/{albumId}': save_hero,
     'GET /api/cassettes': list_cassettes,
     'POST /api/cassettes': create_cassette,
     'DELETE /api/cassettes/{id}': delete_cassette,

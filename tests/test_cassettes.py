@@ -252,3 +252,53 @@ def test_settings_do_not_disturb_progress_or_entries(lib):
     body = call('GET /api/cassettes')[1]
     assert body['cassettes'][0]['progress']['index'] == 1
     assert [e['text'] for e in body['entries']] == ['note']
+
+
+def hero(track, album='bbbbbbbbbbbb'):
+    return call('PUT /api/heroes/{albumId}', {'trackId': track}, albumId=album)
+
+
+def test_hero_is_one_song_per_album_and_replaceable(lib):
+    assert call('GET /api/heroes')[1] == {'heroes': []}
+    assert hero('t1')[0] == 200
+    assert hero('t2')[1] == {'albumId': 'bbbbbbbbbbbb', 'trackId': 't2'}
+    assert hero('t5', 'cccccccccccc')[0] == 200
+    heroes = call('GET /api/heroes')[1]['heroes']
+    assert sorted((h['albumId'], h['trackId']) for h in heroes) == [('bbbbbbbbbbbb', 't2'), ('cccccccccccc', 't5')]
+
+
+def test_hero_can_be_cleared_and_clearing_twice_is_fine(lib):
+    hero('t1')
+    assert hero(None)[0] == 204
+    assert hero(None)[0] == 204
+    assert call('GET /api/heroes')[1] == {'heroes': []}
+
+
+def test_hero_validation(lib):
+    assert hero('t3')[0] == 400  # on another album
+    assert hero('t1', 'ffffffffffff')[0] == 404
+    assert hero('t1', 'not an id')[0] == 400
+    assert hero(5)[0] == 400
+    assert hero('')[0] == 400
+    assert call('PUT /api/heroes/{albumId}', {}, albumId='bbbbbbbbbbbb')[0] == 400
+    assert call('GET /api/heroes')[1] == {'heroes': []}
+
+
+def test_hero_survives_deleting_a_cassette(lib):
+    make()
+    hero('t1')
+    call('DELETE /api/cassettes/{id}', id='album-bbbbbbbbbbbb')
+    assert [h['trackId'] for h in call('GET /api/heroes')[1]['heroes']] == ['t1']
+
+
+def test_hero_keeps_the_review_wording_it_was_saved_with(lib):
+    body = {'trackId': 't1', 'phrase': 'is a masterpiece', 'source': 'NME'}
+    status, saved = call('PUT /api/heroes/{albumId}', body, albumId='bbbbbbbbbbbb')
+    assert status == 200 and saved == {'albumId': 'bbbbbbbbbbbb', **body}
+    assert call('GET /api/heroes')[1]['heroes'] == [{'albumId': 'bbbbbbbbbbbb', **body}]
+
+
+def test_hero_review_wording_is_validated(lib):
+    for bad in ({'phrase': 5}, {'source': ''}, {'phrase': 'x' * 201}):
+        assert call('PUT /api/heroes/{albumId}', {'trackId': 't1', **bad}, albumId='bbbbbbbbbbbb')[0] == 400
+    assert call('GET /api/heroes')[1] == {'heroes': []}

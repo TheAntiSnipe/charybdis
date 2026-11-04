@@ -76,6 +76,12 @@ export const ShuffleIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const StarIcon = ({ filled = false, ...p }: SVGProps<SVGSVGElement> & { filled?: boolean }) => (
+  <svg {...base} fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinejoin="round" {...p}>
+    <path d="m12 3.2 2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.2 6.1-.7Z" />
+  </svg>
+);
+
 export const EqualizerIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base} {...p} className={`eq ${p.className ?? ''}`}>
     <rect className="eq-bar b1" x="4" y="8" width="4" height="12" rx="1" />

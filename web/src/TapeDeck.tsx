@@ -1,7 +1,7 @@
 import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import CassetteArt from './CassetteArt';
 import Deck, { INSERT_CLUNK_S, prefersReducedMotion } from './Deck';
-import { playInsert } from './deckSound';
+import { playInsert, preloadDeckSounds } from './deckSound';
 import { CassetteIcon } from './icons';
 import Journal from './Journal';
 import { useOnline } from './online';
@@ -311,6 +311,7 @@ export default function TapeDeck({ library, tapes, resolve, onVisible }: {
 
   // While this tab is open the deck is the control surface, so the bottom tape bar steps aside.
   useEffect(() => {
+    preloadDeckSounds();
     onVisible?.(true);
     return () => onVisible?.(false);
   }, [onVisible]);
@@ -323,9 +324,12 @@ export default function TapeDeck({ library, tapes, resolve, onVisible }: {
       return;
     }
     setMessage('');
-    playInsert(prefersReducedMotion() ? 0 : INSERT_CLUNK_S);
+    const timing = playInsert(prefersReducedMotion() ? 0 : INSERT_CLUNK_S);
     const { index, positionSec } = tapes.progressOf(tape);
-    player.loadTape({ id: tape.id, kind: tape.kind, label: displayTitle(tape), tracks, index, positionSec });
+    player.loadTape(
+      { id: tape.id, kind: tape.kind, label: displayTitle(tape), tracks, index, positionSec },
+      { afterS: timing.musicAtS, fadeS: timing.fadeS },
+    );
     deckRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
   }
 

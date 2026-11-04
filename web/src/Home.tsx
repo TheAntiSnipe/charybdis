@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createSession, fetchLibrary } from './api';
 import { friendlyError } from './auth';
 import LibraryView from './Library';
+import { useHeroes } from './heroes';
 import { passkeysAvailable, registerPasskey } from './passkeys';
 import PlayerBar from './PlayerBar';
 import { PlayerProvider } from './player';
@@ -53,6 +54,7 @@ export default function Home({ email, onSignOut }: { email: string; onSignOut: (
   }, [albumArt]);
 
   const tapes = useTapes();
+  const heroes = useHeroes();
   const { recordProgress } = tapes;
   // useTapes keeps the freshest place and saves it quietly, retrying if the connection drops.
   const onTapeProgress = recordProgress;
@@ -71,7 +73,7 @@ export default function Home({ email, onSignOut }: { email: string; onSignOut: (
         <main className="content">
           {error && <p className="error" role="alert">{error}</p>}
           {!library && !error && <p className="muted center-text">Loading library…</p>}
-          {library && <LibraryView library={library} artFor={artFor} tapes={tapes} onDeckVisible={setDeckVisible} />}
+          {library && <LibraryView library={library} artFor={artFor} tapes={tapes} heroes={heroes} onDeckVisible={setDeckVisible} />}
         </main>
         <PlayerBar artFor={artFor} hideTapeBar={deckVisible} />
       </div>

@@ -14,6 +14,7 @@ samconfig.toml
 # Audio and media — lives in S3 / on the PC, never in git
 *.m4a
 *.mp3
+!web/public/sounds/*.mp3
 *.flac
 *.wav
 *.aac

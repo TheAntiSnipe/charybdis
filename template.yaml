@@ -301,7 +301,7 @@ Resources:
             Method: GET
             Path: /api/library
 
-  # Tape deck: cassettes and journal entries. Separate function so ApiFunction stays read-only.
+  # Tape deck: cassettes, journal entries and album hero songs. Separate function so ApiFunction stays read-only.
   CassetteLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -363,6 +363,18 @@ Resources:
             ApiId: !Ref HttpApi
             Method: DELETE
             Path: /api/cassettes/{id}
+        ListHeroes:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: GET
+            Path: /api/heroes
+        SaveHero:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Method: PUT
+            Path: /api/heroes/{albumId}
 
   # ------------------------------------------------------------------- auth
   UserPool:
