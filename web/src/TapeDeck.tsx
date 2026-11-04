@@ -395,7 +395,7 @@ export default function TapeDeck({ library, tapes, resolve, onVisible }: {
       )}
       <div className="deck-head">
         <p className="muted deck-note">
-          Pick an album or an artist, load the tape, and listen without names, skipping or a clock.
+          Make yourself comfy, make yourself a cassette! Any artist, any album! Names? Skipping? Elapsed time? What are you, a cop?
         </p>
         <button className="action" onClick={() => setPicking((p) => !p)} aria-expanded={picking}>
           <CassetteIcon /> {picking ? 'Close' : 'New cassette'}
